@@ -1,0 +1,138 @@
+@import "tailwindcss";
+@source "../";
+
+/* ========================================
+   VinJobs Custom Theme — TailwindCSS v4
+   ======================================== */
+@theme {
+  /* Primary — Blue */
+  --color-primary: #2b6fbb;
+  --color-primary-light: #4a90d9;
+  --color-primary-dark: #1a56a0;
+  --color-primary-50: #eef4fb;
+  --color-primary-100: #d6e5f5;
+
+  /* Salary — RED */
+  --color-salary: #e13427;
+
+  /* Accent — Green */
+  --color-accent: #2eaa56;
+  --color-accent-light: #43c46e;
+  --color-accent-dark: #1e8a42;
+  --color-accent-50: #edf9f1;
+
+  /* Danger */
+  --color-danger: #e13427;
+  --color-danger-50: #fef2f2;
+
+  /* Warning */
+  --color-warning: #f59e0b;
+  --color-warning-50: #fffbeb;
+
+  /* Partner badge */
+  --color-partner: #2eaa56;
+
+  /* Surfaces */
+  --color-surface: #ffffff;
+  --color-bg: #f4f4f4;
+  --color-bg-blue: #eef3fb;
+  --color-border-main: #e8e8e8;
+  --color-border-light: #f0f0f0;
+
+  /* Text */
+  --color-text-primary: #222222;
+  --color-text-secondary: #555555;
+  --color-text-muted: #999999;
+
+  /* Shadows */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+  /* Layout */
+  --spacing-header-height: 56px;
+
+  /* Font */
+  --font-sans: 'Reddit Sans', sans-serif;
+}
+
+/* ========================================
+   Global CSS Variables
+   ======================================== */
+:root {
+  --spacing-header-height: 56px;
+}
+
+/* ========================================
+   Global Reset & Base
+   ======================================== */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    font-family: theme(--font-sans) !important;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: none;
+  }
+
+  ul, ol {
+    list-style: none;
+  }
+
+  input, select, textarea {
+    font-family: inherit;
+    font-size: inherit;
+    outline: none;
+  }
+}
+
+/* ========================================
+   Material Icons Base
+   ======================================== */
+.mi {
+  font-family: 'Material Icons Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  vertical-align: middle;
+}
+
+.mi-round {
+  font-family: 'Material Icons Round';
+}
+
+/* Container utility */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 12px;
+  }
+}
