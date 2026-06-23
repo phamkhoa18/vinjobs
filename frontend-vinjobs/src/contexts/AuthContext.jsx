@@ -166,7 +166,6 @@ export function AuthProvider({ children }) {
       isCandidate,
       isEmployer,
       isAdmin,
-      isContentManager,
       login,
       register,
       verifyEmail,
