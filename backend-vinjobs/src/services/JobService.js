@@ -1,5 +1,6 @@
 import Job from '../models/Job.js';
 import AppError from '../utils/AppError.js';
+import mongoose from 'mongoose';
 
 class JobService {
   async createJob(employerId, companyId, data) {
@@ -23,7 +24,13 @@ class JobService {
   }
 
   async getJobById(jobId) {
-    const job = await Job.findById(jobId).populate('company_id', 'name logo');
+    const isValidId = mongoose.Types.ObjectId.isValid(jobId);
+    const query = isValidId ? { $or: [{ _id: jobId }, { slug: jobId }] } : { slug: jobId };
+    
+    const job = await Job.findOne(query)
+      .populate('category_id', 'name slug icon icon_color bg_color')
+      .populate('company_id', 'name logo')
+      .populate('employer_id', 'name email phone avatar');
     if (!job) throw new AppError('Tin tuyển dụng không tồn tại', 404);
     return job;
   }
@@ -41,6 +48,7 @@ class JobService {
     if (query.type) filter.type = query.type;
     if (query.level) filter.level = query.level;
     if (query.category_id) filter.category_id = query.category_id;
+    if (query.company_id) filter.company_id = query.company_id;
     
     // Lọc theo lương (tìm những job có salary_min >= query.min hoặc salary_max >= query.min)
     if (query.minSalary || query.maxSalary) {
@@ -63,8 +71,8 @@ class JobService {
     const total = await Job.countDocuments(filter);
     
     const jobs = await Job.find(filter)
-      .populate('company_id', 'name logo')
-      .populate('category_id', 'name slug')
+      .populate('company_id', 'name logo location industry')
+      .populate('category_id', 'name slug icon icon_color bg_color')
       .sort('-createdAt')
       .skip(skip)
       .limit(limit);
@@ -73,11 +81,41 @@ class JobService {
       jobs,
       pagination: {
         total,
-        page,
+        page: parseInt(query.page, 10) || 1,
         limit,
         totalPages: Math.ceil(total / limit)
       }
     };
+  }
+
+  async getTopCategories() {
+    // Lấy tất cả danh mục active
+    const Category = (await import('../models/Category.js')).default;
+    const categories = await Category.find({ is_active: true });
+
+    // Đếm số lượng job (APPROVED) cho mỗi category
+    const jobCounts = await Job.aggregate([
+      { $match: { status: 'APPROVED' } },
+      { $group: { _id: '$category_id', count: { $sum: 1 } } }
+    ]);
+
+    const countMap = {};
+    jobCounts.forEach(c => {
+      if (c._id) countMap[c._id.toString()] = c.count;
+    });
+
+    const result = categories.map(cat => ({
+      _id: cat._id,
+      name: cat.name,
+      slug: cat.slug,
+      icon: cat.icon,
+      custom_svg: cat.custom_svg,
+      icon_color: cat.icon_color,
+      bg_color: cat.bg_color,
+      count: countMap[cat._id.toString()] || 0
+    })).sort((a, b) => b.count - a.count);
+
+    return result;
   }
 }
 

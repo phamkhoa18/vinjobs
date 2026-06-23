@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Menu, Avatar, Dropdown, ConfigProvider, theme } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, ConfigProvider, theme, Badge } from 'antd';
 import { 
   DashboardOutlined, 
   TeamOutlined, 
@@ -14,7 +14,8 @@ import {
   BellOutlined,
   GlobalOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined
+  MenuUnfoldOutlined,
+  ReadOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
@@ -22,13 +23,14 @@ import { getImageUrl } from '../../lib/api';
 
 const { Header, Sider, Content } = Layout;
 
-const ADMIN_MENUS = [
+const ADMIN_MENUS_BASE = [
   { key: '/admin', icon: <DashboardOutlined />, label: 'Tổng quan' },
   { key: '/admin/users', icon: <TeamOutlined />, label: 'Ứng viên' },
   { key: '/admin/companies', icon: <ShopOutlined />, label: 'Nhà tuyển dụng' },
   { key: '/admin/jobs', icon: <FileTextOutlined />, label: 'Việc làm' },
   { key: '/admin/subscriptions', icon: <DollarOutlined />, label: 'Gói & Doanh thu' },
   { key: '/admin/categories', icon: <AppstoreOutlined />, label: 'Danh mục' },
+  { key: '/admin/blogs', icon: <ReadOutlined />, label: 'Cẩm nang / Blog' },
   { key: '/admin/appearance', icon: <GlobalOutlined />, label: 'Giao diện' },
   { key: '/admin/settings', icon: <SettingOutlined />, label: 'Cài đặt' },
 ];
@@ -39,11 +41,71 @@ export default function AdminLayout({ children }) {
   const { user, logout } = useAuth();
   const { settings } = useSettings();
   const [collapsed, setCollapsed] = useState(false);
+  
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingJobsCount, setPendingJobsCount] = useState(0);
+
+  useEffect(() => {
+    fetchAdminData();
+    // Simple polling every 2 minutes
+    const interval = setInterval(fetchAdminData, 120000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchAdminData = async () => {
+    try {
+      const { adminApi } = await import('../../lib/api');
+      const [statsRes, notifRes] = await Promise.all([
+        adminApi.stats(),
+        adminApi.getNotifications()
+      ]);
+      
+      if (statsRes?.data?.stats?.pendingJobs !== undefined) {
+        setPendingJobsCount(statsRes.data.stats.pendingJobs);
+      }
+      
+      if (notifRes?.data?.notifications) {
+        setNotifications(notifRes.data.notifications);
+        setUnreadCount(notifRes.data.notifications.filter(n => !n.is_read).length);
+      }
+    } catch (error) {
+      console.error('Lỗi tải dữ liệu Admin Layout:', error);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      const { adminApi } = await import('../../lib/api');
+      await adminApi.readAllNotifications();
+      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Lỗi đánh dấu đã đọc:', error);
+    }
+  };
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
+
+  const adminMenus = ADMIN_MENUS_BASE.map(menu => {
+    if (menu.key === '/admin/jobs' && pendingJobsCount > 0) {
+      return {
+        ...menu,
+        label: (
+          <div className="flex justify-between items-center w-full pr-4">
+            <span>{menu.label}</span>
+            <div className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none min-w-[18px] text-center">
+              {pendingJobsCount > 99 ? '99+' : pendingJobsCount}
+            </div>
+          </div>
+        )
+      };
+    }
+    return menu;
+  });
 
   const userMenuItems = [
     {
@@ -63,6 +125,35 @@ export default function AdminLayout({ children }) {
       onClick: handleLogout
     }
   ];
+
+  const notificationItems = notifications.length > 0 ? notifications.map(n => ({
+    key: n._id,
+    label: (
+      <div 
+        className={`w-72 p-2 whitespace-normal border-b border-gray-100 last:border-0 ${!n.is_read ? 'bg-blue-50' : ''}`}
+        onClick={() => {
+          if (n.type === 'NEW_JOB_PENDING') navigate('/admin/jobs');
+        }}
+      >
+        <div className="font-semibold text-gray-800 text-sm mb-1">{n.title}</div>
+        <div className="text-gray-600 text-xs line-clamp-2">{n.message}</div>
+      </div>
+    )
+  })) : [{
+    key: 'empty',
+    label: <div className="p-4 text-center text-gray-500 w-64">Không có thông báo nào</div>
+  }];
+
+  if (notifications.length > 0 && unreadCount > 0) {
+    notificationItems.unshift({
+      key: 'mark-read',
+      label: (
+        <div className="text-center text-blue-600 hover:text-blue-700 font-medium py-1 text-sm border-b border-gray-200" onClick={(e) => { e.stopPropagation(); handleMarkAllRead(); }}>
+          Đánh dấu tất cả đã đọc
+        </div>
+      )
+    });
+  }
 
   return (
     <ConfigProvider
@@ -119,7 +210,7 @@ export default function AdminLayout({ children }) {
             theme="dark" 
             mode="inline" 
             selectedKeys={[pathname]} 
-            items={ADMIN_MENUS}
+            items={adminMenus}
             onClick={({ key }) => navigate(key)}
             style={{ padding: '16px 0' }}
           />
@@ -152,7 +243,15 @@ export default function AdminLayout({ children }) {
             <div className="flex items-center gap-5">
               <div className="flex items-center gap-4 text-[18px] text-gray-500">
                 <GlobalOutlined className="hover:text-[#3674c5] cursor-pointer transition-colors" title="Ngôn ngữ" />
-                <BellOutlined className="hover:text-[#3674c5] cursor-pointer transition-colors" title="Thông báo" />
+                <Dropdown menu={{ items: notificationItems }} trigger={['click']} placement="bottomRight" arrow>
+                  <div className="relative flex items-center justify-center cursor-pointer p-1 hover:text-[#3674c5] transition-colors" title="Thông báo" onClick={() => {
+                    if (unreadCount > 0) handleMarkAllRead();
+                  }}>
+                    <Badge count={unreadCount} size="small">
+                      <BellOutlined style={{ fontSize: '18px' }} />
+                    </Badge>
+                  </div>
+                </Dropdown>
               </div>
               
               <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" arrow>

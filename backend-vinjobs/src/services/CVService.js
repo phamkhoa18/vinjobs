@@ -32,6 +32,26 @@ class CVService {
     if (!cv) throw new AppError('Không tìm thấy CV', 404);
     return cv;
   }
+
+  async deleteCV(candidateId, cvId) {
+    const cv = await CV.findOneAndDelete({ _id: cvId, candidate_id: candidateId });
+    if (!cv) throw new AppError('Không tìm thấy CV hoặc bạn không có quyền xóa', 404);
+    return cv;
+  }
+
+  async setDefaultCV(candidateId, cvId) {
+    const cv = await CV.findOne({ _id: cvId, candidate_id: candidateId });
+    if (!cv) throw new AppError('Không tìm thấy CV', 404);
+
+    // Remove primary from others
+    await CV.updateMany({ candidate_id: candidateId }, { is_primary: false });
+
+    // Set this as primary
+    cv.is_primary = true;
+    await cv.save();
+
+    return cv;
+  }
 }
 
 export default new CVService();

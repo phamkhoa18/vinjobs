@@ -51,6 +51,36 @@ class UploadController {
       }
     });
   });
+
+  /**
+   * Upload tài liệu (PDF, DOC, DOCX)
+   */
+  uploadDocument = asyncHandler(async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return next(new AppError('Vui lòng chọn một file tài liệu để tải lên.', 400));
+      }
+
+      const fileUrl = await imageService.processAndSaveImage(req.file.buffer, {
+        mimetype: req.file.mimetype
+      });
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Tải tài liệu lên thành công',
+        data: {
+          url: fileUrl
+        }
+      });
+    } catch (error) {
+      console.error('[uploadDocument] Error:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error.message,
+        stack: error.stack
+      });
+    }
+  });
 }
 
 export default new UploadController();

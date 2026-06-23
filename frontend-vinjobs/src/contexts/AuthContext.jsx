@@ -144,7 +144,6 @@ export function AuthProvider({ children }) {
   const isCandidate = user?.role === 'CANDIDATE';
   const isEmployer = user?.role === 'EMPLOYER';
   const isAdmin = user?.role === 'ADMIN';
-  const isContentManager = user?.role === 'CONTENT_MANAGER';
   const isAuthenticated = !!user;
 
   const dashboardPath = () => {
@@ -153,7 +152,7 @@ export function AuthProvider({ children }) {
       case 'CANDIDATE': return '/candidate';
       case 'EMPLOYER': return '/employer';
       case 'ADMIN': return '/admin';
-      case 'CONTENT_MANAGER': return '/content/posts';
+
       default: return '/';
     }
   };

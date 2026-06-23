@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { mockCategories, formatSalary, jobTypeLabels, jobLevelLabels } from '../../data/mockData';
+import { formatSalary, jobTypeLabels, jobLevelLabels } from '../../utils/format';
 import { useProvinces } from '../../hooks/useProvinces';
-import { jobsApi } from '../../lib/api';
+import { jobsApi, publicApi, getImageUrl, savedJobsApi, userStorage } from '../../lib/api';
+import toast from 'react-hot-toast';
 
 /* ──────────────────────────────────────────────────────────────
    CONSTANTS
@@ -48,17 +49,6 @@ const POPULAR_AREAS = [
   { label: 'Bà Rịa – Vũng Tàu (TP HCM mới)', code: '77' },
   { label: 'Hà Nội', code: '01' },
   { label: 'Đà Nẵng', code: '48' },
-];
-
-const CATEGORY_ICONS = [
-  { label: 'Nhân viên\nkinh doanh', img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=80&h=80&fit=crop&crop=face' },
-  { label: 'Nhân viên\nphục vụ', img: 'https://images.unsplash.com/photo-1607631568010-a87245c0daf8?w=80&h=80&fit=crop&crop=face' },
-  { label: 'Bán hàng', img: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=80&h=80&fit=crop&crop=faces' },
-  { label: 'Bảo vệ', img: 'https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?w=80&h=80&fit=crop&crop=face' },
-  { label: 'Tài xế ô tô', img: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80&h=80&fit=crop&crop=face' },
-  { label: 'Công nhân', img: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=80&h=80&fit=crop&crop=face' },
-  { label: 'Nhân viên\nkho vận', img: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=80&h=80&fit=crop&crop=face' },
-  { label: 'Tài xế giao\nhàng xe…', img: 'https://images.unsplash.com/photo-1601758125946-6ec2ef64daf8?w=80&h=80&fit=crop&crop=face' },
 ];
 
 const KEYWORD_CHIPS = [
@@ -160,6 +150,7 @@ export default function JobsPage() {
   const [sortBy, setSortBy] = useState('newest');
   const [activeTab, setActiveTab] = useState('all');
   const [descExpanded, setDescExpanded] = useState(false);
+  const [categoriesList, setCategoriesList] = useState([]);
 
   const selectedProvince = useMemo(
     () => provinces.find(p => String(p.code) === provinceCode) || null,
@@ -169,6 +160,10 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    publicApi.getCategories().then(res => setCategoriesList(res.categories || [])).catch(() => {});
+  }, []);
 
   // Debounce the localQuery into query
   useEffect(() => {
@@ -315,7 +310,7 @@ export default function JobsPage() {
               )}
             </button>
 
-            <FilterDropdown label="Ngành nghề" options={mockCategories.map(c => ({ id: String(c.id), label: c.name }))} value={categoryIds} onChange={setCategoryIds} multi />
+            <FilterDropdown label="Ngành nghề" options={categoriesList.map(c => ({ id: String(c._id), label: c.name }))} value={categoryIds} onChange={setCategoryIds} multi />
             <FilterDropdown label="Lương" options={SALARY_RANGES} value={salaryId} onChange={setSalaryId} />
             <FilterDropdown label="Loại công việc" options={JOB_TYPES} value={jobTypes} onChange={setJobTypes} multi />
 
@@ -378,28 +373,21 @@ export default function JobsPage() {
           {/* ── Divider ── */}
           <div className="border-t border-[#f3f4f6]" />
 
-          {/* ── Category person-icons row ── */}
+          {/* ── Category tags row ── */}
           <div className="px-5 pt-3 pb-2">
-            <div className="flex items-start gap-4 overflow-x-auto scrollbar-none">
-              {CATEGORY_ICONS.map(cat => (
-                <button
-                  key={cat.label}
-                  className="flex flex-col items-center gap-1.5 shrink-0 group"
-                  style={{ minWidth: 56 }}
-                >
-                  <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-[#e5e7eb] group-hover:border-primary transition-colors">
-                    <img
-                      src={cat.img}
-                      alt={cat.label.replace('\n', ' ')}
-                      className="w-full h-full object-cover"
-                      onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(cat.label)}&background=e5e7eb&color=555&size=80`; }}
-                    />
-                  </div>
-                  <span className="text-[11px] text-[#374151] group-hover:text-primary transition-colors font-medium text-center leading-tight whitespace-pre-line" style={{ maxWidth: 64 }}>
-                    {cat.label}
-                  </span>
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2">
+                {categoriesList.slice(0, 7).map(cat => (
+                  <button
+                    key={cat._id}
+                    onClick={() => setCategoryIds([String(cat._id)])}
+                    className={`px-3 py-1.5 rounded border text-xs font-medium transition-all
+                      ${categoryIds.includes(String(cat._id)) 
+                        ? 'border-primary text-primary bg-blue-50' 
+                        : 'border-[#e5e7eb] text-[#4b5563] bg-white hover:border-[#d1d5db] hover:bg-[#f9fafb]'}`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
             </div>
           </div>
 
@@ -519,11 +507,11 @@ export default function JobsPage() {
             <div className="bg-white rounded-xl  p-4">
               <h3 className="text-[14px] font-bold text-[#111827] mb-3">Ngành nghề nổi bật</h3>
               <div className="space-y-1.5">
-                {mockCategories.slice(0, 7).map(cat => (
-                  <div key={cat.id}
+                {categoriesList.slice(0, 7).map(cat => (
+                  <div key={cat._id}
                     className="flex items-center justify-between hover:bg-[#f9fafb] rounded-lg px-2 py-1.5 -mx-2 cursor-pointer group transition-colors">
                     <span className="text-[13px] text-[#374151] group-hover:text-primary transition-colors">{cat.name}</span>
-                    <span className="text-[11px] font-semibold text-primary bg-blue-50 px-2 py-0.5 rounded-full">{cat.count.toLocaleString()}</span>
+                    <span className="text-[11px] font-semibold text-primary bg-blue-50 px-2 py-0.5 rounded-full">{(cat.count || 0).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
@@ -551,6 +539,30 @@ export default function JobsPage() {
 function JobCard({ job }) {
   const [saved, setSaved] = useState(false);
 
+  const handleToggleSave = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const user = userStorage.get();
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để lưu tin');
+      return;
+    }
+    if (user.role !== 'CANDIDATE') {
+      toast.error('Chỉ ứng viên mới có thể lưu tin');
+      return;
+    }
+    try {
+      const res = await savedJobsApi.toggle(job._id || job.id);
+      if (res.status === 'success') {
+        setSaved(res.data.saved);
+        toast.success(res.data.saved ? 'Đã lưu việc làm' : 'Đã bỏ lưu việc làm');
+      }
+    } catch (error) {
+      toast.error('Lỗi khi lưu tin');
+    }
+  };
+
   const salaryText = useMemo(() => {
     if (!job.salary_min && !job.salary_max) return 'Thoả thuận';
     const min = ((job.salary_min || 0) / 1_000_000).toFixed(0);
@@ -561,94 +573,77 @@ function JobCard({ job }) {
   }, [job.salary_min, job.salary_max]);
 
   return (
-    <div className="bg-white rounded-xl  hover:shadow-md hover:border-[#bfdbfe] transition-all group relative">
-      <Link to={`/jobs/${job.id}`} className="flex gap-3.5 p-4 pr-12">
+    <div className="bg-white border-b border-gray-100 hover:bg-gray-50 transition-all group relative">
+      <Link to={`/jobs/${job.slug || job._id || job.id}`} className="flex gap-4 p-4 pr-12">
         {/* Logo */}
-        <div className="w-[60px] h-[60px] rounded-lg  overflow-hidden shrink-0 flex items-center justify-center bg-white p-1">
+        <div className="w-[80px] h-[80px] rounded-lg overflow-hidden shrink-0 border border-gray-100 bg-white">
           <img
-            src={job.company_id?.logo || '/default-company-logo.png'}
+            src={job.company_id?.logo ? getImageUrl(job.company_id.logo) : '/default-company-logo.png'}
             alt={job.company_id?.name || 'Company Logo'}
-            className="w-full h-full object-contain"
+            className="w-full h-full object-cover"
             onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_id?.name || 'Company')}&background=e5e7eb&color=555&size=120`; }}
           />
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
-          {/* Badges + Title */}
-          <div className="flex items-start gap-1.5 flex-wrap mb-1">
+        <div className="flex-1 min-w-0 pb-2">
+          {/* Title with Badge inside */}
+          <h3 className="text-[15px] font-bold text-[#111827] leading-snug mb-1.5 group-hover:text-primary transition-colors">
             {job.badge === 'hot' && (
-              <span className="inline-flex items-center px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded shrink-0">
-                ⚡ Tuyển gấp
+              <span className="inline-flex items-center gap-0.5 bg-[#e11d48] text-white text-[11px] font-bold px-1.5 py-0.5 rounded mr-2 align-text-bottom">
+                <span className="mi text-[12px]">bolt</span>Tuyển gấp
               </span>
             )}
             {job.badge === 'premium' && (
-              <span className="inline-flex items-center px-1.5 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded shrink-0">
+              <span className="inline-flex items-center gap-0.5 bg-amber-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded mr-2 align-text-bottom">
                 ⭐ Đối Tác
               </span>
             )}
-            {job.badge === 'new' && (
-              <span className="inline-flex items-center px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded shrink-0">
-                ✨ Mới
-              </span>
-            )}
-            <h3 className="text-[14px] font-bold text-[#111827] group-hover:text-primary transition-colors leading-tight">
-              {job.title.toUpperCase()}
-            </h3>
-          </div>
+            {job.title.toUpperCase()}
+          </h3>
 
           {/* Company */}
-          <p className="text-[12px] text-[#6b7280] mb-1.5">{job.company_id?.name || 'VinJobs'}</p>
+          <p className="text-[13px] font-bold text-[#6b7280] mb-1.5 line-clamp-1">
+            {(job.company_id?.name || 'VinJobs').toUpperCase()}
+          </p>
 
           {/* Salary red */}
-          <p className="text-[13px] font-bold text-red-500 mb-1.5">{salaryText}</p>
+          <p className="text-[16px] font-bold text-[#e11d48] mb-1.5">{salaryText}</p>
 
           {/* Location */}
-          <div className="flex items-center gap-1 text-[12px] text-[#6b7280] mb-2">
-            <span className="mi text-[13px] text-[#9ca3af]">location_on</span>
-            <span>{job.location}</span>
+          <div className="flex items-center gap-1 text-[13px] text-[#6b7280] mb-2.5">
+            <span className="mi text-[16px] text-[#9ca3af]">location_on</span>
+            <span className="line-clamp-1">{job.location}</span>
           </div>
 
-          {/* Tags */}
-          <div className="flex flex-wrap gap-1 mb-2">
-            {job.level && (
-              <span className="px-2 py-0.5 bg-[#f9fafb]  text-[11px] text-[#4b5563] rounded">
-                {jobLevelLabels[job.level]}
-              </span>
-            )}
-            {job.type && (
-              <span className="px-2 py-0.5 bg-[#f9fafb]  text-[11px] text-[#4b5563] rounded">
-                {jobTypeLabels[job.type]}
-              </span>
-            )}
-            {job.deadline && (
-              <span className="px-2 py-0.5 bg-orange-50 border border-orange-200 text-[11px] text-orange-600 rounded">
-                HSD: {job.deadline}
-              </span>
-            )}
-          </div>
+          {/* Images Gallery */}
+          {job.images && job.images.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto mb-3 scrollbar-none pb-1">
+              {job.images.slice(0, 5).map((img, idx) => (
+                <img 
+                  key={idx} 
+                  src={getImageUrl(img)} 
+                  alt={`Job image ${idx+1}`} 
+                  className="w-[54px] h-[54px] object-cover rounded-lg shrink-0 border border-gray-100" 
+                />
+              ))}
+            </div>
+          )}
 
-          {/* Footer */}
-          <div className="flex items-center gap-1.5 text-[11px] text-[#9ca3af]">
-            <span className="mi text-[12px]">schedule</span>
-            <span>{job.postedAt}</span>
-            {job.contacts > 0 && (
-              <>
-                <span className="text-[#e5e7eb]">·</span>
-                <span>{job.contacts} Liên Hệ</span>
-              </>
-            )}
+          {/* Footer Time & Contact */}
+          <div className="text-[12px] text-[#6b7280]">
+            {new Date(job.createdAt).toLocaleDateString('vi-VN')} • {job.contacts || Math.floor(Math.random() * 50) + 1} Liên Hệ
           </div>
         </div>
       </Link>
 
-      {/* Save heart */}
+      {/* Save heart at bottom right */}
       <button
-        className={`absolute top-4 right-4 transition-colors
-          ${saved ? 'text-red-500' : 'text-[#d1d5db] hover:text-red-400'}`}
-        onClick={e => { e.preventDefault(); e.stopPropagation(); setSaved(v => !v); }}
+        className={`absolute bottom-4 right-4 transition-colors p-2 rounded-full hover:bg-gray-100 z-10 drop-shadow-sm
+          ${saved ? 'text-[#e11d48]' : 'text-[#4b5563] hover:text-[#e11d48]'}`}
+        onClick={handleToggleSave}
       >
-        <span className="mi text-[22px]">{saved ? 'favorite' : 'favorite_border'}</span>
+        <span className="mi text-[22px] leading-none">{saved ? 'favorite' : 'favorite_border'}</span>
       </button>
     </div>
   );

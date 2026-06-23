@@ -1,8 +1,18 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { mockCategories, mockIndustries, mockPosts, formatSalary } from '../../data/mockData';
+import { jobsApi, companiesApi, blogApi, publicApi, getImageUrl } from '../../lib/api';
 import { useProvinces } from '../../hooks/useProvinces';
-import { jobsApi, companiesApi } from '../../lib/api';
+import * as AntdIcons from '@ant-design/icons';
+
+/* ========================================================
+   Helper: Format Salary
+   ======================================================== */
+const formatSalaryVal = (job) => {
+  if (job.salary_negotiable || (!job.salary_min && !job.salary_max)) return "Thỏa thuận";
+  const min = job.salary_min ? (job.salary_min / 1000000).toFixed(0) : 0;
+  const max = job.salary_max ? (job.salary_max / 1000000).toFixed(0) : 0;
+  return `${min} - ${max} triệu/tháng`;
+};
 
 /* ========================================================
    INDUSTRIES — dùng cho dropdown picker
@@ -29,9 +39,9 @@ const HOT_KEYWORDS = [
 ];
 
 /* ========================================================
-   HERO SEARCH — dùng API tỉnh thành thực tế
+   HERO SEARCH — dùng API tỉnh thành và danh mục thực tế
    ======================================================== */
-function HeroSearch() {
+function HeroSearch({ topCategories = [] }) {
   const navigate = useNavigate();
   const { provinces, loading: loadingProvinces } = useProvinces();
 
@@ -61,7 +71,7 @@ function HeroSearch() {
         const res = await jobsApi.list({ keyword: q, limit: 5 });
         const jobs = (res?.data?.jobs || []).map(j => ({
           type: 'job', id: j._id || j.id, title: j.title, sub: j.company_id?.name || 'VinJobs',
-          salary: formatSalary(j.salary_min), logo: j.company_id?.logo || '/default-company-logo.png'
+          salary: formatSalary(j.salary_min), logo: j.company_id?.logo ? getImageUrl(j.company_id.logo) : '/default-company-logo.png'
         }));
 
         const kws = HOT_KEYWORDS
@@ -99,7 +109,7 @@ function HeroSearch() {
     const p = new URLSearchParams();
     if (q)        p.set('q', q);
     if (prov?.code) p.set('province', prov.code);
-    if (ind?.id)  p.set('industry', ind.id);
+    if (ind?._id)  p.set('category_id', ind._id);
     setTimeout(() => {
       setIsSearching(false);
       navigate(`/jobs?${p.toString()}`);
@@ -121,7 +131,7 @@ function HeroSearch() {
   const cities   = filteredProvinces.filter(p => p.isCity);
   const nonCities = filteredProvinces.filter(p => !p.isCity);
 
-  const filteredIndustries = INDUSTRIES.filter(i =>
+  const filteredIndustries = topCategories.filter(i =>
     !indSearch || i.name.toLowerCase().includes(indSearch.toLowerCase())
   );
 
@@ -335,27 +345,31 @@ function HeroSearch() {
                   </div>
                 </div>
                 <div className="max-h-[340px] overflow-y-auto p-2">
-                  {industry && (
-                    <button type="button"
-                      onClick={() => { setIndustry(null); setShowInd(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-xl border border-[#e5e7eb] hover:border-primary hover:text-primary transition-all text-left text-[13px] text-[#6b7280] font-medium">
-                      <span className="mi text-[16px]">clear</span> Xoá lựa chọn
-                    </button>
-                  )}
-                  {filteredIndustries.map(ind => (
-                    <button key={ind.id} type="button"
-                      onClick={() => { setIndustry(ind); setShowInd(false); setIndSearch(''); }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#f9fafb] transition-colors text-left ${industry?.id === ind.id ? 'bg-blue-50' : ''}`}>
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${ind.color}18` }}>
-                        <span className="mi text-[18px]" style={{ color: ind.color }}>{ind.icon}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-[13px] font-semibold truncate ${industry?.id === ind.id ? 'text-primary' : 'text-[#111827]'}`}>{ind.name}</p>
-                        <p className="text-[11px] text-[#6b7280]">{ind.jobs.toLocaleString()} việc làm</p>
-                      </div>
-                      {industry?.id === ind.id && <span className="mi text-[18px] text-primary shrink-0">check</span>}
-                    </button>
-                  ))}
+                  <button type="button" className="w-full flex items-center gap-3 p-3 hover:bg-[#f3f4f6] rounded-xl transition-colors group text-left"
+                    onClick={() => { setIndustry(null); setShowInd(false); }}>
+                    <span className="mi text-[#374151] group-hover:text-primary transition-colors text-[20px]">apps</span>
+                    <span className="text-[14px] text-[#374151] group-hover:text-primary font-medium transition-colors">Tất cả ngành nghề</span>
+                  </button>
+                  {filteredIndustries.map(ind => {
+                    const IconComp = AntdIcons[ind.icon] || AntdIcons.AppstoreOutlined;
+                    return (
+                      <button key={ind._id} type="button" className="w-full flex items-center gap-3 p-3 hover:bg-[#f3f4f6] rounded-xl transition-colors group text-left"
+                        onClick={() => { setIndustry(ind); setShowInd(false); }}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${ind.bg_color || '#eef2ff'}`, color: `${ind.icon_color || '#3674c5'}` }}>
+                          {ind.custom_svg ? (
+                            <span className="w-5 h-5 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: ind.custom_svg }} style={{ fill: 'currentColor' }} />
+                          ) : (
+                            <IconComp className="text-[18px]" />
+                          )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className={`text-[13px] font-semibold truncate ${industry?._id === ind._id ? 'text-primary' : 'text-[#111827]'}`}>{ind.name}</span>
+                          <span className="text-[11px] text-[#6b7280]">{(ind.count || 0).toLocaleString()} việc làm</span>
+                        </div>
+                        {industry?._id === ind._id && <span className="mi text-[18px] text-primary shrink-0 ml-auto">check</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -416,11 +430,14 @@ function HeroSearch() {
     </div>
   );
 }
-
 /* ========================================================
    MAIN HOME PAGE
    ======================================================== */
 export default function HomePage() {
+  const [topJobs, setTopJobs] = useState([]);
+  const [topCategories, setTopCategories] = useState([]);
+  const [topCompanies, setTopCompanies] = useState([]);
+  const [blogPosts, setBlogPosts] = useState([]);
   const [activeTab, setActiveTab] = useState('Tin nổi bật');
   const [hotJobs, setHotJobs] = useState([]);
   const [latestJobs, setLatestJobs] = useState([]);
@@ -428,11 +445,31 @@ export default function HomePage() {
   const blogTabs   = ['Tin nổi bật', 'Cẩm nang tìm việc', 'Cẩm nang ngành nghề'];
 
   useEffect(() => {
+    // 1. Fetch Top Jobs
+    publicApi.jobs({ limit: 10, sort: '-createdAt' })
+      .then(res => setTopJobs(res.data?.jobs || []))
+      .catch(err => console.error(err));
+
+    // 2. Fetch Top Categories
+    publicApi.getCategories()
+      .then(res => setTopCategories(res.categories || []))
+      .catch(err => console.error(err));
+
+    // 3. Fetch Top Companies
+    publicApi.getTopCompanies(8)
+      .then(res => setTopCompanies(res.companies || []))
+      .catch(err => console.error(err));
+
+    // 4. Fetch Blog Posts
+    blogApi.getPosts({ limit: 4 })
+      .then(res => setBlogPosts(res.data?.posts || []))
+      .catch(err => console.error(err));
+
     const fetchHomeData = async () => {
       try {
         const [hotRes, latestRes, compRes] = await Promise.all([
-          jobsApi.list({ limit: 6, level: 'MANAGER' }), // Giả lập hot jobs
-          jobsApi.list({ limit: 6, sort: '-createdAt' }),
+          publicApi.jobs({ limit: 6, level: 'MANAGER' }), // Giả lập hot jobs
+          publicApi.jobs({ limit: 6, sort: '-createdAt' }),
           companiesApi.list({ limit: 10 })
         ]);
         if (hotRes.status === 'success') setHotJobs(hotRes.data.jobs);
@@ -454,22 +491,34 @@ export default function HomePage() {
           <h1 className="text-[28px] md:text-[32px] font-extrabold italic text-white mb-5 drop-shadow-lg">
             Việc tới tay, đi làm ngay!
           </h1>
-          <HeroSearch />
+          <HeroSearch topCategories={topCategories} />
         </div>
       </section>
 
       {/* ===== CATEGORIES ===== */}
       <section className="bg-white py-8 border-b border-border-main">
         <div className="container">
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1">
-            {mockCategories.map((cat) => (
-              <Link to={`/jobs?category=${cat.id}`} key={cat.id} className="flex flex-col items-center gap-2 p-3 rounded-xl text-center hover:bg-bg transition-colors group">
-                <div className="w-14 h-14 md:w-[60px] md:h-[60px] rounded-full flex items-center justify-center" style={{background: `${cat.color}18`, color: cat.color}}>
-                  <span className="mi text-[28px] md:text-[32px]">{cat.icon}</span>
-                </div>
-                <span className="text-[13px] font-medium text-text-primary leading-tight">{cat.name}</span>
-              </Link>
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {topCategories.slice(0, 10).map((cat) => {
+              const IconComp = AntdIcons[cat.icon] || AntdIcons.AppstoreOutlined;
+              return (
+                <Link to={`/jobs?category_id=${cat._id}`} key={cat._id} className="group relative bg-white p-5 rounded-2xl border border-border-main hover:border-primary hover:shadow-card transition-all duration-300">
+                  <div className="flex flex-col gap-4">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:-translate-y-1" style={{ backgroundColor: cat.bg_color || '#eef2ff', color: cat.icon_color || '#3674c5' }}>
+                      {cat.custom_svg ? (
+                        <span className="w-6 h-6 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: cat.custom_svg }} style={{ fill: 'currentColor' }} />
+                      ) : (
+                        <IconComp className="text-2xl" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-text-primary mb-1 group-hover:text-primary transition-colors">{cat.name}</h3>
+                      <p className="text-sm text-text-secondary">{cat.count || 0} việc làm</p>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
           <div className="text-center mt-4">
             <Link to="/jobs" className="inline-flex items-center px-4 py-2 text-sm font-semibold text-text-primary border border-border-main rounded-full hover:border-primary hover:text-primary transition-all">
@@ -512,10 +561,10 @@ export default function HomePage() {
         <div className="container">
           <h2 className="text-xl font-bold text-text-primary mb-4">Việc làm từ Nhà tuyển dụng tiêu biểu</h2>
           <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
-            {companies.map((company) => (
-              <Link to={`/companies/${company._id || company.id}`} key={company._id || company.id} className="shrink-0 flex flex-col items-center gap-2 w-[120px] p-4 border border-border-main rounded-xl bg-white text-center hover:border-primary-100 hover:shadow-card transition-all">
+            {topCompanies.map((company) => (
+              <Link to={`/companies/${company.slug || company._id || company.id}`} key={company._id || company.id} className="shrink-0 flex flex-col items-center gap-2 w-[120px] p-4 border border-border-main rounded-xl bg-white text-center hover:border-primary-100 hover:shadow-card transition-all">
                 <div className="w-[60px] h-[60px] flex items-center justify-center">
-                  <img src={company.logo || '/default-company-logo.png'} alt={company.name} className="max-w-full max-h-full object-contain"
+                  <img src={company.logo ? getImageUrl(company.logo) : '/default-company-logo.png'} alt={company.name} className="max-w-full max-h-full object-contain"
                     onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&background=random&size=100`; }} />
                 </div>
                 <span className="text-xs font-semibold text-text-primary leading-tight line-clamp-2">{company.name}</span>
@@ -544,16 +593,20 @@ export default function HomePage() {
             <button className="px-4 py-2 text-sm font-semibold text-text-secondary border border-border-main rounded-full bg-white hover:border-primary hover:text-primary transition-all">Nghề</button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {mockIndustries.map((ind) => (
-              <Link to={`/jobs?industry=${ind.id}`} key={ind.id} className="group bg-white border border-border-main rounded-xl overflow-hidden hover:shadow-card transition-all">
-                <div className="h-[140px] overflow-hidden">
-                  <img src={ind.image} alt={ind.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            {topCategories.slice(0, 5).map((cat) => (
+              <Link to={`/jobs?category_id=${cat._id}`} key={cat._id} className="group bg-white border border-border-main rounded-xl overflow-hidden hover:shadow-card transition-all flex flex-col">
+                <div className="h-[140px] overflow-hidden bg-gray-100 flex items-center justify-center">
+                  {cat.image ? (
+                    <img src={getImageUrl(cat.image)} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <span className="mi text-4xl text-gray-400">{cat.icon || 'work'}</span>
+                  )}
                 </div>
-                <div className="p-3.5">
-                  <h3 className="text-sm font-bold text-text-primary mb-1 leading-tight line-clamp-2">{ind.name}</h3>
-                  <p className="text-xs text-text-muted mb-0.5">Khoảng lương</p>
-                  <p className="text-sm font-bold text-salary mb-2">Đến {ind.salary}</p>
-                  <span className="text-[13px] font-medium text-text-primary underline">Xem tin tuyển dụng</span>
+                <div className="p-3.5 flex-1 flex flex-col">
+                  <h3 className="text-sm font-bold text-text-primary mb-1 leading-tight line-clamp-2">{cat.name}</h3>
+                  <p className="text-xs text-text-muted mb-0.5">Việc làm hiện có</p>
+                  <p className="text-sm font-bold text-salary mb-2">{cat.count || 0} công việc</p>
+                  <span className="text-[13px] font-medium text-text-primary underline mt-auto">Xem tin tuyển dụng</span>
                 </div>
               </Link>
             ))}
@@ -575,14 +628,18 @@ export default function HomePage() {
             ))}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {mockPosts.filter(p => activeTab === 'Tin nổi bật' || p.category === activeTab).slice(0, 4).map((post) => (
-              <Link to={`/blog/${post.id}`} key={post.id} className="group bg-white border border-border-main rounded-xl overflow-hidden hover:shadow-card transition-all">
-                <div className="h-[150px] overflow-hidden">
-                  <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            {blogPosts.filter(p => activeTab === 'Tin nổi bật' || p.category_id?.name === activeTab).slice(0, 4).map((post) => (
+              <Link to={`/blog/${post.slug}`} key={post._id} className="group bg-white border border-border-main rounded-xl overflow-hidden hover:shadow-card transition-all flex flex-col">
+                <div className="h-[150px] overflow-hidden bg-gray-100 flex items-center justify-center">
+                  {post.thumbnail ? (
+                    <img src={getImageUrl(post.thumbnail)} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <span className="mi text-4xl text-gray-400">article</span>
+                  )}
                 </div>
-                <div className="p-3">
+                <div className="p-3 flex-1 flex flex-col">
                   <h3 className="text-sm font-semibold text-text-primary leading-snug mb-1.5 line-clamp-2 group-hover:text-primary transition-colors">{post.title}</h3>
-                  <span className="text-xs text-text-muted">{post.date}</span>
+                  <span className="text-xs text-text-muted mt-auto">{new Date(post.createdAt).toLocaleDateString('vi-VN')}</span>
                 </div>
               </Link>
             ))}
@@ -621,9 +678,9 @@ export default function HomePage() {
    ======================================================== */
 function JobCard({ job }) {
   return (
-    <Link to={`/jobs/${job._id || job.id}`} className="flex gap-3.5 p-4 bg-white border border-border-main rounded-xl hover:shadow-card transition-all group">
+    <Link to={`/jobs/${job.slug || job._id || job.id}`} className="flex gap-3.5 p-4 bg-white border border-border-main rounded-xl hover:shadow-card transition-all group">
       <div className="w-[52px] h-[52px] rounded-lg border border-border-main overflow-hidden shrink-0 flex items-center justify-center bg-white p-0.5">
-        <img src={job.company_id?.logo || '/default-company-logo.png'} alt={job.company_id?.name || 'Company Logo'} className="w-full h-full object-contain"
+        <img src={job.company_id?.logo ? getImageUrl(job.company_id.logo) : '/default-company-logo.png'} alt={job.company_id?.name || 'Company Logo'} className="w-full h-full object-contain"
           onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_id?.name || 'Company')}&background=random&size=80`; }} />
       </div>
       <div className="flex-1 min-w-0">

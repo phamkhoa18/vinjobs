@@ -55,7 +55,6 @@ export function RoleRoute({ children, allowedRoles }) {
       CANDIDATE: '/candidate',
       EMPLOYER: '/employer',
       ADMIN: '/admin',
-      CONTENT_MANAGER: '/content/posts',
     };
     const redirect = roleRedirects[user?.role] || '/';
     return <Navigate to={redirect} replace />;

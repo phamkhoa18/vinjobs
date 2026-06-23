@@ -135,11 +135,13 @@ export default function PostJobPage() {
       setSaving(true);
 
       let finalIndustry = '';
+      let categoryId = null;
       if (values.industry_parent === 'OTHER') {
         finalIndustry = values.custom_industry;
       } else {
         const childCat = categories.find(c => c._id === values.industry_child);
         const parentCat = categories.find(c => c._id === values.industry_parent);
+        categoryId = childCat ? childCat._id : (parentCat ? parentCat._id : null);
         finalIndustry = childCat ? childCat.name : (parentCat ? parentCat.name : '');
       }
 
@@ -151,17 +153,17 @@ export default function PostJobPage() {
 
       const payload = {
         title: values.title,
+        category_id: categoryId,
         industry: finalIndustry,
         type: values.type,
         level: Array.isArray(values.level) ? values.level[0] : values.level,
         location: fullLocation,
         deadline: values.deadline.format('YYYY-MM-DD'),
         slots: values.slots,
-        salary: {
-          min: values.negotiable ? null : values.salaryMin,
-          max: values.negotiable ? null : values.salaryMax,
-          negotiable: values.negotiable,
-        },
+        category_id: categoryId,
+        salary_min: values.negotiable ? null : (values.salaryMin ? values.salaryMin * 1000000 : null),
+        salary_max: values.negotiable ? null : (values.salaryMax ? values.salaryMax * 1000000 : null),
+        salary_negotiable: values.negotiable || false,
         description: values.description,
         requirements: values.requirements,
         nice_to_have: values.nice_to_have || '',
@@ -169,7 +171,13 @@ export default function PostJobPage() {
         working_days: values.working_days || [],
         working_hours: values.working_hours ? values.working_hours.map(t => t.format('HH:mm')) : [],
         probation: values.probation,
-        images: values.images?.map(file => file.response?.data?.url || file.url).filter(Boolean) || [],
+        images: values.images?.map(file => {
+          if (file.response?.data?.url) return file.response.data.url;
+          if (file.url) {
+            try { return new URL(file.url).pathname; } catch { return file.url; }
+          }
+          return null;
+        }).filter(Boolean) || [],
         video_url: values.video_url || '',
       };
 
@@ -271,6 +279,49 @@ export default function PostJobPage() {
               <Col xs={24} md={4}>
                 <Form.Item name="slots" label={<span className="font-medium text-[#111827]">Số lượng</span>} rules={[{ required: true, message: 'Nhập SL' }]}>
                   <InputNumber min={1} max={999} className="w-full" />
+                </Form.Item>
+              </Col>
+
+              <Col xs={24}>
+                <Divider className="my-2 border-gray-100" />
+                <Title level={5} className="mt-2 mb-4 text-[#111827]">Yêu cầu chung</Title>
+              </Col>
+
+              <Col xs={24} md={8}>
+                <Form.Item name="experience" label={<span className="font-medium text-[#111827]">Kinh nghiệm</span>} initialValue="Không yêu cầu">
+                  <Select>
+                    {['Không yêu cầu', 'Dưới 1 năm', '1 năm', '2 năm', '3 năm', '5 năm', 'Trên 5 năm'].map(l => <Option key={l} value={l}>{l}</Option>)}
+                  </Select>
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} md={8}>
+                <Form.Item name="education" label={<span className="font-medium text-[#111827]">Học vấn</span>} initialValue="Không yêu cầu">
+                  <Select>
+                    {['Không yêu cầu', 'Trung học', 'Trung cấp', 'Cao đẳng', 'Đại học', 'Thạc sĩ', 'Tiến sĩ'].map(l => <Option key={l} value={l}>{l}</Option>)}
+                  </Select>
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} md={8}>
+                <Form.Item name="gender" label={<span className="font-medium text-[#111827]">Giới tính</span>} initialValue="Không yêu cầu">
+                  <Select>
+                    {['Không yêu cầu', 'Nam', 'Nữ'].map(l => <Option key={l} value={l}>{l}</Option>)}
+                  </Select>
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} md={8}>
+                <Form.Item label={<span className="font-medium text-[#111827]">Độ tuổi (từ - đến)</span>}>
+                  <Input.Group compact>
+                    <Form.Item name="age_min" noStyle>
+                      <InputNumber min={18} max={60} placeholder="Từ" style={{ width: '45%', textAlign: 'center' }} />
+                    </Form.Item>
+                    <Input className="site-input-split" style={{ width: '10%', borderLeft: 0, borderRight: 0, pointerEvents: 'none', backgroundColor: '#fff' }} placeholder="~" disabled />
+                    <Form.Item name="age_max" noStyle>
+                      <InputNumber min={18} max={60} placeholder="Đến" className="site-input-right" style={{ width: '45%', textAlign: 'center' }} />
+                    </Form.Item>
+                  </Input.Group>
                 </Form.Item>
               </Col>
 
@@ -402,14 +453,25 @@ export default function PostJobPage() {
                   name="images" 
                   label={<span className="font-medium text-[#111827]">Thư viện ảnh (Văn phòng, Hoạt động...)</span>}
                   valuePropName="fileList"
-                  getValueFromEvent={(e) => Array.isArray(e) ? e : e?.fileList}
+                  getValueFromEvent={(e) => {
+                    const list = Array.isArray(e) ? e : e?.fileList;
+                    return list?.filter(file => file.status !== 'error');
+                  }}
                 >
                   <Upload
                     name="image"
                     listType="picture-card"
-                    action="http://localhost:5000/api/upload/image"
-                    headers={{ Authorization: `Bearer ${localStorage.getItem('token')}` }}
+                    action={`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/upload/image`}
+                    headers={{ Authorization: `Bearer ${localStorage.getItem('vj_token')}` }}
                     multiple
+                    onChange={(info) => {
+                      if (info.file.status === 'done') {
+                        message.success(`Tải ảnh ${info.file.name} lên thành công`);
+                      } else if (info.file.status === 'error') {
+                        const errMsg = info.file.response?.message || 'Lỗi mạng hoặc file quá lớn';
+                        message.error(`Tải ảnh ${info.file.name} thất bại: ${errMsg}`);
+                      }
+                    }}
                   >
                     <div>
                       <PlusOutlined />

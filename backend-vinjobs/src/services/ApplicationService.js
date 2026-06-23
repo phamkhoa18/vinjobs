@@ -29,8 +29,15 @@ class ApplicationService {
     const skip = (page - 1) * limit;
 
     const applications = await Application.find({ candidate_id: candidateId })
-      .populate('job_id', 'title location salary_min salary_max type level')
-      .populate('employer_id', 'full_name email')
+      .populate({
+        path: 'job_id',
+        select: 'title location salary_min salary_max type level company_id',
+        populate: {
+          path: 'company_id',
+          select: 'name logo'
+        }
+      })
+      .populate('employer_id', 'full_name email name')
       .sort({ applied_at: -1 })
       .skip(skip)
       .limit(parseInt(limit));

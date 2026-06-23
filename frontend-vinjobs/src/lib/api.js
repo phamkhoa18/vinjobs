@@ -262,6 +262,21 @@ export const authApi = {
   login: (email, password, captchaToken) =>
     api.post('/auth/login', { email, password, captchaToken }),
 
+  getMe: () => api.get('/users/me'),
+  updatePassword: (data) => api.patch('/users/me/password', data),
+
+  /**
+   * @returns {Promise<SuccessResponse<{ notifications: Notification[], unreadCount: number }>>}
+   */
+  getNotifications: () => api.get('/users/me/notifications'),
+
+  /**
+   * @returns {Promise<SuccessResponse<any>>}
+   */
+  readAllNotifications: () => api.patch('/users/me/notifications/read-all'),
+
+  getCandidateStats: () => api.get('/users/me/candidate-stats'),
+
   /**
    * @param {Object} data 
    * @returns {Promise<AuthResponse>}
@@ -318,6 +333,12 @@ export const publicApi = {
 
   // Jobs
   jobs: (params) => api.get('/jobs', { params }),
+  
+  // Job Categories
+  getCategories: () => api.get('/jobs/categories').then(res => res.data),
+
+  // Top Companies
+  getTopCompanies: (limit = 10) => api.get(`/companies/top?limit=${limit}`).then(res => res.data),
 };
 
 export const blogApi = {
@@ -345,6 +366,12 @@ export const uploadApi = {
    * @returns {Promise<SuccessResponse<{ url: string }>>}
    */
   uploadImage: (formData) => api.post('/upload/image', formData),
+
+  /**
+   * @param {FormData} formData
+   * @returns {Promise<SuccessResponse<{ url: string }>>}
+   */
+  uploadDocument: (formData) => api.post('/upload/document', formData),
 };
 
 // ─── Jobs API ───────────────────────────────────────────────────────
@@ -429,6 +456,10 @@ export const companiesApi = {
    * @returns {Promise<SuccessResponse<{ company: Company }>>}
    */
   verify: (data) => api.put('/companies/verify', data),
+
+  // Follow company
+  toggleFollow: (id) => api.post(`/companies/${id}/follow`),
+  checkFollow: (id) => api.get(`/companies/${id}/check-follow`),
 };
 
 // ─── Applications API ───────────────────────────────────────────────
@@ -441,6 +472,12 @@ export const applicationsApi = {
    */
   apply: (jobId, cv_id, coverLetter) =>
     api.post('/applications', { jobId, cv_id, cover_letter: coverLetter }),
+
+  /**
+   * @param {string} jobId
+   * @returns {Promise<SuccessResponse<{ applied: boolean }>>}
+   */
+  checkApplied: (jobId) => api.get(`/applications/check/${jobId}`),
 
   /**
    * @param {Object} [params]
@@ -481,6 +518,16 @@ export const adminApi = {
    * @returns {Promise<SuccessResponse<any>>}
    */
   stats: () => api.get('/admin/stats'),
+
+  /**
+   * @returns {Promise<SuccessResponse<any>>}
+   */
+  getNotifications: () => api.get('/admin/notifications'),
+
+  /**
+   * @returns {Promise<SuccessResponse<any>>}
+   */
+  readAllNotifications: () => api.patch('/admin/notifications/read-all'),
 
   /**
    * @param {Object} [params]
@@ -611,5 +658,29 @@ export const adminApi = {
   updateJobStatus: (id, status) =>
     api.patch(`/admin/jobs/${id}/status`, { status }),
 };
+
+export const savedJobsApi = {
+  toggle: (jobId) => api.post('/saved-jobs', { jobId }),
+  getMySavedJobs: (params) => {
+    const qs = new URLSearchParams(params).toString();
+    return api.get(`/saved-jobs/me${qs ? `?${qs}` : ''}`);
+  },
+  checkSaved: (jobId) => api.get(`/saved-jobs/check/${jobId}`),
+};
+
+export const cvApi = {
+  uploadCV: (data) => api.post('/cvs', data),
+  getMyCVs: () => api.get('/cvs'),
+  deleteCV: (id) => api.delete(`/cvs/${id}`),
+  setDefault: (id) => api.patch(`/cvs/${id}/default`),
+};
+
+export const publicJobsApi = {
+  search: (params) => {
+    const qs = new URLSearchParams(params).toString();
+    return api.get(`/jobs${qs ? `?${qs}` : ''}`);
+  }
+};
+
 
 export default api;

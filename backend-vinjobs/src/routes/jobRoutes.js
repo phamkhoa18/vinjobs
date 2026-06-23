@@ -11,6 +11,9 @@ const router = express.Router();
 
 // ============ PUBLIC ROUTES ============
 
+// GET /api/v1/jobs/categories - Get top categories with job counts
+router.get('/categories', jobController.getCategories);
+
 // GET /api/v1/jobs - Search/List jobs
 router.get('/', jobController.searchJobs);
 
@@ -47,6 +50,14 @@ router.post('/', restrictTo('EMPLOYER', 'ADMIN'), asyncHandler(async (req, res, 
     company_id: company._id,
     status: 'PENDING',
   });
+
+  // Notify admins
+  try {
+    const NotificationFacade = (await import('../patterns/facade/NotificationFacade.js')).default;
+    await NotificationFacade.sendNewJobNotification(job, company);
+  } catch (err) {
+    console.error('Lỗi khi gửi thông báo job mới:', err);
+  }
 
   res.status(201).json({
     status: 'success',

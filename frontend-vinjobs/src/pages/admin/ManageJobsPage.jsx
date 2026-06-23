@@ -1,11 +1,35 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { Card, Table, Tag, Button, Input, Space, Typography, Select, Modal, Row, Col, Divider, message } from 'antd';
+import { Card, Table, Tag, Button, Input, Space, Typography, Select, Modal, Row, Col, Divider, message, Descriptions } from 'antd';
 import { SearchOutlined, CheckCircleOutlined, StopOutlined, EyeOutlined } from '@ant-design/icons';
 import { adminApi } from '../../lib/api';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
+
+const JOB_TYPES = {
+  FULL_TIME: 'Toàn thời gian',
+  PART_TIME: 'Bán thời gian',
+  INTERNSHIP: 'Thực tập',
+  FREELANCE: 'Cộng tác viên / Freelance',
+  CONTRACT: 'Hợp đồng'
+};
+
+const BENEFITS_MAP = {
+  insurance: 'Bảo hiểm',
+  bonus: 'Thưởng',
+  training: 'Đào tạo',
+  lunch: 'Phụ cấp ăn trưa',
+  gym: 'Phòng tập thể hình',
+  remote: 'Làm việc từ xa',
+  team_building: 'Du lịch / Team building',
+  flexible: 'Giờ làm linh hoạt',
+  travel: 'Phụ cấp công tác',
+  extra_leave: 'Nghỉ phép thêm',
+  laptop: 'Cấp thiết bị (Laptop/Macbook)',
+  health_check: 'Khám sức khỏe',
+  other: 'Khác'
+};
 
 export default function ManageJobsPage() {
   const [jobs, setJobs] = useState([]);
@@ -68,6 +92,17 @@ export default function ManageJobsPage() {
       dataIndex: 'company_id',
       key: 'company',
       render: (company) => <Text type="secondary">{company?.name || 'N/A'}</Text>,
+    },
+    {
+      title: 'Người đăng',
+      dataIndex: 'employer_id',
+      key: 'employer',
+      render: (employer) => (
+        <div className="flex flex-col">
+          <Text strong className="text-sm">{employer?.name || 'N/A'}</Text>
+          <Text type="secondary" className="text-xs">{employer?.email || ''}</Text>
+        </div>
+      ),
     },
     {
       title: 'Ứng viên',
@@ -194,6 +229,8 @@ export default function ManageJobsPage() {
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
         width={900}
+        centered
+        style={{ paddingBottom: 0 }}
         footer={selectedJob?.status === 'PENDING' ? [
           <Button key="reject" danger onClick={() => updateStatus(selectedJob._id, 'REJECTED')}>Từ chối</Button>,
           <Button key="approve" type="primary" className="bg-[#111827]" onClick={() => updateStatus(selectedJob._id, 'APPROVED')}>Duyệt tin</Button>
@@ -202,28 +239,74 @@ export default function ManageJobsPage() {
         ]}
       >
         {selectedJob && (
-          <div className="py-4">
-            <Title level={4} className="mb-1">{selectedJob.title}</Title>
-            <Text type="secondary" className="block mb-4">{selectedJob.company_id?.name || 'N/A'}</Text>
+          <div className="py-4 max-h-[70vh] overflow-y-auto overflow-x-hidden px-2">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <Title level={4} className="mb-1">{selectedJob.title}</Title>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Text type="secondary">{selectedJob.company_id?.name || 'N/A'}</Text>
+                  <Divider type="vertical" className="m-0" />
+                  <Text type="secondary">
+                    Đăng bởi: <Text strong>{selectedJob.employer_id?.name || 'N/A'}</Text> ({selectedJob.employer_id?.email || 'N/A'})
+                  </Text>
+                  <Tag color="blue" className="m-0">{selectedJob.industry}</Tag>
+                </div>
+              </div>
+              <div className="text-right">
+                <Text type="secondary" className="block text-xs uppercase">Hạn nộp</Text>
+                <Text strong className="text-red-500">{dayjs(selectedJob.deadline).format('DD/MM/YYYY')}</Text>
+              </div>
+            </div>
 
-            <Row gutter={[16, 16]} className="mb-4 bg-gray-50 p-4 rounded-lg">
-              <Col xs={12} md={6}>
-                <Text type="secondary" className="block text-xs uppercase mb-1">Mức lương</Text>
-                <Text strong>{selectedJob.salary?.negotiable ? 'Thỏa thuận' : `${selectedJob.salary?.min} - ${selectedJob.salary?.max} triệu`}</Text>
-              </Col>
-              <Col xs={12} md={6}>
-                <Text type="secondary" className="block text-xs uppercase mb-1">Địa điểm</Text>
+            <Descriptions bordered column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }} className="mb-6 bg-white" size="small">
+              <Descriptions.Item label="Mức lương" span={1}>
+                <Text strong>{selectedJob.salary_negotiable ? 'Thỏa thuận' : `${selectedJob.salary_min / 1000000} - ${selectedJob.salary_max / 1000000} triệu`}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Địa điểm" span={1}>
                 <Text strong>{selectedJob.location}</Text>
-              </Col>
-              <Col xs={12} md={6}>
-                <Text type="secondary" className="block text-xs uppercase mb-1">Hình thức</Text>
-                <Text strong>{selectedJob.type}</Text>
-              </Col>
-              <Col xs={12} md={6}>
-                <Text type="secondary" className="block text-xs uppercase mb-1">Cấp bậc</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Hình thức" span={1}>
+                <Text strong>{JOB_TYPES[selectedJob.type] || selectedJob.type}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Cấp bậc" span={1}>
                 <Text strong>{selectedJob.level}</Text>
-              </Col>
-            </Row>
+              </Descriptions.Item>
+              <Descriptions.Item label="Kinh nghiệm" span={1}>
+                <Text strong>{selectedJob.experience || 'Không yêu cầu'}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Học vấn" span={1}>
+                <Text strong>{selectedJob.education || 'Không yêu cầu'}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Giới tính" span={1}>
+                <Text strong>{selectedJob.gender || 'Không yêu cầu'}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Độ tuổi" span={1}>
+                <Text strong>{(selectedJob.age_min || selectedJob.age_max) ? `Từ ${selectedJob.age_min || 18} - ${selectedJob.age_max || 60} tuổi` : 'Không yêu cầu'}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Số lượng tuyển" span={1}>
+                <Text strong>{selectedJob.slots || 'Không giới hạn'}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Thử việc" span={1}>
+                <Text strong>{selectedJob.probation || 'Không yêu cầu'}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Thời gian làm việc" span={2}>
+                <Text strong>
+                  {selectedJob.working_days?.join(', ') || 'N/A'} <br />
+                  {selectedJob.working_hours && selectedJob.working_hours.length === 2 
+                    ? `${selectedJob.working_hours[0]} - ${selectedJob.working_hours[1]}` 
+                    : 'N/A'}
+                </Text>
+              </Descriptions.Item>
+            </Descriptions>
+
+            {selectedJob.benefits && selectedJob.benefits.length > 0 && (
+              <div className="mb-6">
+                <Title level={5}>Phúc lợi & Chế độ</Title>
+                <Space size={[0, 8]} wrap>
+                  {selectedJob.benefits.map((b, i) => <Tag color="green" key={i}>{BENEFITS_MAP[b] || b}</Tag>)}
+                </Space>
+              </div>
+            )}
 
             {selectedJob.images && selectedJob.images.length > 0 && (
               <div className="mb-6">
@@ -231,7 +314,7 @@ export default function ManageJobsPage() {
                 <div className="flex flex-wrap gap-4 mt-2">
                   {selectedJob.images.map((url, idx) => (
                     <div key={idx} className="w-32 h-32 rounded-lg overflow-hidden border border-gray-200">
-                      <img src={url} alt={`Job Image ${idx}`} className="w-full h-full object-cover" />
+                      <img src={(typeof getImageUrl !== 'undefined' ? getImageUrl : (u) => (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000') + (u.startsWith('/') ? u : '/'+u))(url)} alt={`Job Image ${idx}`} className="w-full h-full object-cover" />
                     </div>
                   ))}
                 </div>
@@ -254,10 +337,17 @@ export default function ManageJobsPage() {
 
             <Divider />
             <Title level={5}>Mô tả công việc</Title>
-            <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: selectedJob.description }} />
+            <div className="text-gray-700 quill-content bg-gray-50 p-4 rounded-lg" dangerouslySetInnerHTML={{ __html: selectedJob.description }} />
             
             <Title level={5} className="mt-6">Yêu cầu ứng viên</Title>
-            <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: selectedJob.requirements }} />
+            <div className="text-gray-700 quill-content bg-gray-50 p-4 rounded-lg" dangerouslySetInnerHTML={{ __html: selectedJob.requirements }} />
+            
+            {selectedJob.nice_to_have && selectedJob.nice_to_have.trim() !== '<p><br></p>' && (
+              <>
+                <Title level={5} className="mt-6">Yêu cầu ưu tiên (Không bắt buộc)</Title>
+                <div className="text-gray-700 quill-content bg-blue-50 p-4 rounded-lg" dangerouslySetInnerHTML={{ __html: selectedJob.nice_to_have }} />
+              </>
+            )}
           </div>
         )}
       </Modal>

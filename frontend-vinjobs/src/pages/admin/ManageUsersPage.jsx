@@ -149,7 +149,7 @@ export default function ManageUsersPage() {
       dataIndex: 'role',
       key: 'role',
       render: (role) => {
-        const colors = { CANDIDATE: 'blue', EMPLOYER: 'green', ADMIN: 'purple', CONTENT_MANAGER: 'magenta' };
+        const colors = { CANDIDATE: 'blue', EMPLOYER: 'green', ADMIN: 'purple' };
         return <Tag color={colors[role] || 'default'}>{role}</Tag>;
       },
     },
@@ -238,7 +238,7 @@ export default function ManageUsersPage() {
               { value: 'CANDIDATE', label: 'Ứng viên' },
               { value: 'EMPLOYER', label: 'Nhà tuyển dụng' },
               { value: 'ADMIN', label: 'Quản trị viên' },
-              { value: 'CONTENT_MANAGER', label: 'Quản lý nội dung' },
+
             ]}
           />
           <Select 
@@ -312,7 +312,7 @@ export default function ManageUsersPage() {
                 <Select.Option value="CANDIDATE">Ứng viên</Select.Option>
                 <Select.Option value="EMPLOYER">Nhà tuyển dụng</Select.Option>
                 <Select.Option value="ADMIN">Quản trị viên</Select.Option>
-                <Select.Option value="CONTENT_MANAGER">Quản lý nội dung</Select.Option>
+
               </Select>
             </Form.Item>
 

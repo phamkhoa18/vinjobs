@@ -18,6 +18,11 @@ class JobController {
     const job = await jobService.getJobById(req.params.id);
     res.status(200).json({ status: 'success', data: { job } });
   });
+
+  getCategories = asyncHandler(async (req, res) => {
+    const categories = await jobService.getTopCategories();
+    res.status(200).json({ status: 'success', results: categories.length, data: { categories } });
+  });
 }
 
 export default new JobController();

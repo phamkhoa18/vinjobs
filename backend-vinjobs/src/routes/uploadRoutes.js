@@ -15,4 +15,7 @@ router.use(uploadLimiter);
 // Nhận file ảnh qua field name là 'image'
 router.post('/image', upload.single('image'), uploadController.uploadImage);
 
+// Nhận file tài liệu qua field name là 'document'
+router.post('/document', upload.single('document'), uploadController.uploadDocument);
+
 export default router;

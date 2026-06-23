@@ -1,201 +1,243 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { applicationsApi } from '../../lib/api';
-import { formatSalary } from '../../data/mockData';
+import { Card, Typography, Tabs, Table, Tag, Row, Col, Statistic, Space, Button, Drawer, Steps, Avatar } from 'antd';
+import { 
+  FileDoneOutlined, 
+  HourglassOutlined, 
+  AudioOutlined, 
+  CloseCircleOutlined,
+  EyeOutlined
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+
+const { Title, Text } = Typography;
 
 const STATUS_CONFIG = {
-  PENDING: { label: 'Chờ duyệt', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', icon: 'pending' },
-  REVIEWING: { label: 'Đã xem', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', icon: 'visibility' },
-  INTERVIEW: { label: 'Phỏng vấn', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', icon: 'record_voice_over' },
-  OFFER: { label: 'Đề nghị (Offer)', color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200', icon: 'local_offer' },
-  ACCEPTED: { label: 'Đã nhận việc', color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-200', icon: 'check_circle' },
-  REJECTED: { label: 'Không phù hợp', color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-200', icon: 'cancel' },
-  WITHDRAWN: { label: 'Đã rút đơn', color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-200', icon: 'remove_circle' },
+  PENDING: { label: 'Chờ duyệt', color: 'orange', step: 0 },
+  REVIEWING: { label: 'Đã xem', color: 'blue', step: 1 },
+  INTERVIEW: { label: 'Phỏng vấn', color: 'purple', step: 2 },
+  OFFER: { label: 'Đề nghị (Offer)', color: 'geekblue', step: 3 },
+  ACCEPTED: { label: 'Đã nhận việc', color: 'green', step: 4 },
+  REJECTED: { label: 'Không phù hợp', color: 'red', step: -1 },
+  WITHDRAWN: { label: 'Đã rút đơn', color: 'default', step: -1 },
 };
 
-const FILTER_TABS = ['Tất cả', 'Chờ duyệt', 'Đã xem', 'Phỏng vấn', 'Không phù hợp'];
-const statusMap = { 'Chờ duyệt': 'PENDING', 'Đã xem': 'REVIEWING', 'Phỏng vấn': 'INTERVIEW', 'Không phù hợp': 'REJECTED' };
-
 export default function ApplicationsPage() {
-  const [activeFilter, setActiveFilter] = useState('Tất cả');
-  const [selected, setSelected] = useState(null);
+  const [activeTab, setActiveTab] = useState('ALL');
+  const [selectedApp, setSelectedApp] = useState(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchApps = async () => {
-      setLoading(true);
-      try {
-        const res = await applicationsApi.mine({ limit: 50 });
-        if (res.status === 'success') {
-          setApplications(res.data.applications);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchApps();
   }, []);
 
-  const filtered = applications.filter(a => activeFilter === 'Tất cả' || a.status === statusMap[activeFilter]);
+  const fetchApps = async () => {
+    setLoading(true);
+    try {
+      const res = await applicationsApi.getMyApplications({ limit: 100 });
+      if (res.status === 'success') {
+        setApplications(res.data.applications || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const counts = {
-    all: applications.length,
-    pending: applications.filter(a => a.status === 'PENDING').length,
-    viewed: applications.filter(a => a.status === 'REVIEWING').length,
-    interview: applications.filter(a => a.status === 'INTERVIEW').length,
-    rejected: applications.filter(a => a.status === 'REJECTED').length,
+    ALL: applications.length,
+    PENDING: applications.filter(a => a.status === 'PENDING').length,
+    REVIEWING: applications.filter(a => a.status === 'REVIEWING').length,
+    INTERVIEW: applications.filter(a => a.status === 'INTERVIEW').length,
+    REJECTED: applications.filter(a => a.status === 'REJECTED').length,
   };
+
+  const filteredApps = applications.filter(a => activeTab === 'ALL' || a.status === activeTab);
+
+  const columns = [
+    {
+      title: 'Công việc',
+      key: 'job',
+      render: (_, record) => {
+        const jobTitle = record.job_id?.title || 'Việc làm không còn tồn tại';
+        const companyName = record.job_id?.company_id?.name || record.employer_id?.full_name || 'Công ty';
+        const logo = record.job_id?.company_id?.logo || '/default-company-logo.png';
+        return (
+          <Space>
+            <Avatar shape="square" size={40} src={logo} />
+            <div>
+              <Text strong className="block">{jobTitle}</Text>
+              <Text type="secondary" className="text-xs">{companyName}</Text>
+            </div>
+          </Space>
+        );
+      }
+    },
+    {
+      title: 'Ngày nộp',
+      dataIndex: 'applied_at',
+      key: 'applied_at',
+      render: (date) => dayjs(date).format('DD/MM/YYYY'),
+      sorter: (a, b) => dayjs(a.applied_at).unix() - dayjs(b.applied_at).unix()
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => {
+        const config = STATUS_CONFIG[status] || STATUS_CONFIG['PENDING'];
+        return <Tag color={config.color}>{config.label}</Tag>;
+      }
+    },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      render: (_, record) => (
+        <Button 
+          type="link" 
+          icon={<EyeOutlined />} 
+          onClick={() => {
+            setSelectedApp(record);
+            setDrawerVisible(true);
+          }}
+        >
+          Chi tiết
+        </Button>
+      )
+    }
+  ];
 
   return (
     <DashboardLayout role="candidate">
-      <div className="mb-6">
-        <h1 className="text-[22px] font-bold text-[#111827]">Hồ sơ đã nộp</h1>
-        <p className="text-[13px] text-[#6b7280] mt-0.5">Theo dõi trạng thái tất cả hồ sơ ứng tuyển của bạn</p>
+      <div style={{ marginBottom: '24px' }}>
+        <Title level={4} style={{ margin: 0 }}>Hồ sơ đã nộp</Title>
+        <Text type="secondary">Theo dõi trạng thái tất cả hồ sơ ứng tuyển của bạn</Text>
       </div>
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        {[
-          { label: 'Tổng ứng tuyển', value: counts.all, color: '#3674c5', bg: '#eff6ff', icon: 'description' },
-          { label: 'Chờ phản hồi', value: counts.pending, color: '#f59e0b', bg: '#fffbeb', icon: 'pending' },
-          { label: 'Đang phỏng vấn', value: counts.interview, color: '#10b981', bg: '#ecfdf5', icon: 'record_voice_over' },
-          { label: 'Không phù hợp', value: counts.rejected, color: '#ef4444', bg: '#fef2f2', icon: 'cancel' },
-        ].map((s, i) => (
-          <div key={i} className="bg-white rounded-xl border border-[#e5e7eb] p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: s.bg }}>
-              <span className="mi text-[20px]" style={{ color: s.color }}>{s.icon}</span>
-            </div>
-            <div>
-              <p className="text-[11px] text-[#6b7280]">{s.label}</p>
-              <p className="text-[22px] font-black" style={{ color: s.color }}>{s.value}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+        <Col xs={12} md={6}>
+          <Card bordered={false} className="shadow-sm">
+            <Statistic title="Tổng ứng tuyển" value={counts.ALL} prefix={<FileDoneOutlined style={{ color: '#1677ff' }} />} />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card bordered={false} className="shadow-sm">
+            <Statistic title="Chờ phản hồi" value={counts.PENDING} prefix={<HourglassOutlined style={{ color: '#faad14' }} />} />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card bordered={false} className="shadow-sm">
+            <Statistic title="Đang phỏng vấn" value={counts.INTERVIEW} prefix={<AudioOutlined style={{ color: '#722ed1' }} />} />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card bordered={false} className="shadow-sm">
+            <Statistic title="Không phù hợp" value={counts.REJECTED} prefix={<CloseCircleOutlined style={{ color: '#ff4d4f' }} />} />
+          </Card>
+        </Col>
+      </Row>
 
-      {/* Filter tabs */}
-      <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none">
-        {FILTER_TABS.map(tab => (
-          <button key={tab} onClick={() => setActiveFilter(tab)}
-            className={`px-4 py-2 text-[13px] font-semibold rounded-full whitespace-nowrap border transition-all shrink-0
-              ${activeFilter === tab ? 'bg-primary text-white border-primary' : 'bg-white text-[#374151] border-[#e5e7eb] hover:border-primary hover:text-primary'}`}>
-            {tab}
-            <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activeFilter === tab ? 'bg-white/30 text-white' : 'bg-[#f3f4f6] text-[#6b7280]'}`}>
-              {tab === 'Tất cả' ? counts.all : counts[statusMap[tab]] || 0}
-            </span>
-          </button>
-        ))}
-      </div>
+      <Card bordered={false} className="shadow-sm">
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            { key: 'ALL', label: `Tất cả (${counts.ALL})` },
+            { key: 'PENDING', label: `Chờ duyệt (${counts.PENDING})` },
+            { key: 'REVIEWING', label: `Đã xem (${counts.REVIEWING})` },
+            { key: 'INTERVIEW', label: `Phỏng vấn (${counts.INTERVIEW})` },
+            { key: 'REJECTED', label: `Không phù hợp (${counts.REJECTED})` },
+          ]}
+        />
+        <Table 
+          columns={columns} 
+          dataSource={filteredApps} 
+          rowKey="_id" 
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
+      </Card>
 
-      {/* Applications list */}
-      <div className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden min-h-[300px]">
-        {loading ? (
-          <div className="flex justify-center items-center h-full pt-16">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="p-12 text-center">
-            <span className="mi text-[48px] text-[#d1d5db] block mb-3">inbox</span>
-            <p className="text-[15px] text-[#6b7280]">Không có hồ sơ nào ở trạng thái này</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-[#f3f4f6]">
-            {filtered.map(app => {
-              const s = STATUS_CONFIG[app.status] || STATUS_CONFIG['PENDING'];
-              const jobTitle = app.job_id?.title || 'Việc làm không còn tồn tại';
-              const companyName = app.employer_id?.full_name || 'Công ty';
-              const location = app.job_id?.location || 'Không rõ';
-              const salaryText = app.job_id?.salary_min ? `${(app.job_id.salary_min/1_000_000).toFixed(0)} - ${(app.job_id.salary_max/1_000_000).toFixed(0)} triệu` : 'Thỏa thuận';
+      <Drawer
+        title="Chi tiết hồ sơ ứng tuyển"
+        placement="right"
+        width={400}
+        onClose={() => setDrawerVisible(false)}
+        open={drawerVisible}
+      >
+        {selectedApp && (() => {
+          const s = STATUS_CONFIG[selectedApp.status] || STATUS_CONFIG['PENDING'];
+          const jobTitle = selectedApp.job_id?.title || 'Việc làm không còn tồn tại';
+          const companyName = selectedApp.job_id?.company_id?.name || selectedApp.employer_id?.full_name || 'Công ty';
+          const location = selectedApp.job_id?.location?.province || selectedApp.job_id?.location || 'Không rõ';
+          const salaryText = selectedApp.job_id?.salary_min ? `${(selectedApp.job_id.salary_min/1000000).toFixed(0)} - ${(selectedApp.job_id.salary_max/1000000).toFixed(0)} triệu` : 'Thỏa thuận';
+          
+          let currentStep = s.step;
+          let stepStatus = 'process';
+          if (selectedApp.status === 'REJECTED') {
+            currentStep = 1; // Mark rejected after reviewing
+            stepStatus = 'error';
+          }
 
-              return (
-                <div key={app._id}
-                  className="flex items-center gap-4 px-5 py-4 hover:bg-[#fafafa] transition-colors cursor-pointer"
-                  onClick={() => setSelected(selected === app._id ? null : app._id)}>
-                  <div className="w-12 h-12 rounded-xl border border-[#e5e7eb] bg-white flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
-                    <img src="/default-company-logo.png" alt="" className="w-full h-full object-contain"
-                      onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&background=random&size=80`; }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-[14px] font-bold text-[#111827] truncate">{jobTitle}</h3>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <span className="text-[12px] text-[#6b7280]">{companyName}</span>
-                      <span className="text-[12px] text-[#6b7280] flex items-center gap-0.5">
-                        <span className="mi text-[13px]">location_on</span>{location}
-                      </span>
-                      <span className="text-[12px] font-semibold text-red-500">{salaryText}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[11px] text-[#9ca3af]">{new Date(app.applied_at).toLocaleDateString()}</span>
-                    <span className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${s.color} ${s.bg} ${s.border}`}>
-                      <span className="mi text-[13px]">{s.icon}</span>{s.label}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Application detail panel */}
-      {selected && (
-        <div className="mt-4 bg-white rounded-xl border border-[#e5e7eb] p-6">
-          {(() => {
-            const app = applications.find(a => a._id === selected);
-            if (!app) return null;
-            const s = STATUS_CONFIG[app.status] || STATUS_CONFIG['PENDING'];
-            const jobTitle = app.job_id?.title || 'Việc làm không còn tồn tại';
-            const companyName = app.employer_id?.full_name || 'Công ty';
-            const location = app.job_id?.location || 'Không rõ';
-            const salaryText = app.job_id?.salary_min ? `${(app.job_id.salary_min/1_000_000).toFixed(0)} - ${(app.job_id.salary_max/1_000_000).toFixed(0)} triệu` : 'Thỏa thuận';
-            const appliedDate = new Date(app.applied_at).toLocaleDateString();
-
-            return (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[16px] font-bold text-[#111827]">Chi tiết hồ sơ</h3>
-                  <span className={`flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full border ${s.color} ${s.bg} ${s.border}`}>
-                    <span className="mi text-[15px]">{s.icon}</span>{s.label}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 mb-4 p-4 bg-[#f9fafb] rounded-xl">
-                  <div className="w-12 h-12 rounded-xl border border-[#e5e7eb] bg-white flex items-center justify-center p-1.5 overflow-hidden">
-                    <img src="/default-company-logo.png" alt="" className="w-full h-full object-contain"
-                      onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&background=random&size=80`; }} />
-                  </div>
-                  <div>
-                    <p className="text-[15px] font-bold text-[#111827]">{jobTitle}</p>
-                    <p className="text-[13px] text-[#6b7280]">{companyName} · {location} · {salaryText}</p>
-                  </div>
-                </div>
-                {/* Timeline */}
-                <div className="relative pl-5 space-y-3">
-                  {[
-                    { label: `Đã nộp hồ sơ`, date: appliedDate, done: true },
-                    { label: 'HR đã xem hồ sơ', date: ['REVIEWING','INTERVIEW','OFFER','ACCEPTED'].includes(app.status) ? new Date(app.updated_at).toLocaleDateString() : '—', done: ['REVIEWING','INTERVIEW','OFFER','ACCEPTED'].includes(app.status) },
-                    { label: 'Mời phỏng vấn', date: app.status === 'INTERVIEW' ? new Date(app.updated_at).toLocaleDateString() : '—', done: app.status === 'INTERVIEW' },
-                    { label: 'Từ chối / Không phù hợp', date: app.status === 'REJECTED' ? new Date(app.updated_at).toLocaleDateString() : '—', done: app.status === 'REJECTED' },
-                  ].map((step, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${step.done ? 'bg-primary' : 'bg-[#e5e7eb]'}`}>
-                        <span className="mi text-[12px] text-white">{step.done ? 'check' : 'radio_button_unchecked'}</span>
-                      </div>
-                      <div>
-                        <p className={`text-[13px] font-medium ${step.done ? 'text-[#111827]' : 'text-[#9ca3af]'}`}>{step.label}</p>
-                        <p className="text-[11px] text-[#9ca3af]">{step.date}</p>
-                      </div>
-                    </div>
-                  ))}
+          return (
+            <div className="space-y-6">
+              <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <Avatar 
+                  shape="square" 
+                  size={56} 
+                  src={selectedApp.job_id?.company_id?.logo || '/default-company-logo.png'} 
+                  className="bg-white border border-gray-200"
+                />
+                <div>
+                  <Title level={5} style={{ margin: 0 }}>{jobTitle}</Title>
+                  <Text type="secondary" className="text-xs block mt-1">{companyName}</Text>
+                  <Text type="danger" className="text-xs font-semibold">{salaryText}</Text>
                 </div>
               </div>
-            );
-          })()}
-        </div>
-      )}
+
+              <div>
+                <Title level={5} className="mb-4">Trạng thái hồ sơ</Title>
+                {selectedApp.status === 'REJECTED' ? (
+                  <Steps
+                    direction="vertical"
+                    current={1}
+                    status="error"
+                    items={[
+                      { title: 'Đã nộp hồ sơ', description: dayjs(selectedApp.applied_at).format('DD/MM/YYYY HH:mm') },
+                      { title: 'Không phù hợp', description: `Nhà tuyển dụng đã phản hồi` },
+                    ]}
+                  />
+                ) : (
+                  <Steps
+                    direction="vertical"
+                    current={currentStep}
+                    items={[
+                      { title: 'Đã nộp hồ sơ', description: dayjs(selectedApp.applied_at).format('DD/MM/YYYY HH:mm') },
+                      { title: 'Nhà tuyển dụng đã xem', description: currentStep >= 1 ? 'Hồ sơ đang được xem xét' : 'Chờ nhà tuyển dụng xem' },
+                      { title: 'Phỏng vấn', description: currentStep >= 2 ? 'Có lịch phỏng vấn' : '' },
+                      { title: 'Đề nghị nhận việc', description: currentStep >= 3 ? 'Đã gửi Offer' : '' },
+                      { title: 'Hoàn tất', description: currentStep >= 4 ? 'Đã nhận việc' : '' },
+                    ]}
+                  />
+                )}
+              </div>
+
+              {selectedApp.cover_letter && (
+                <div>
+                  <Title level={5} className="mb-2">Thư giới thiệu (Cover Letter)</Title>
+                  <div className="p-4 bg-gray-50 rounded-lg text-sm text-gray-700 whitespace-pre-wrap border border-gray-200">
+                    {selectedApp.cover_letter}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </Drawer>
     </DashboardLayout>
   );
 }

@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
-import { getImageUrl } from '../../lib/api';
+import { getImageUrl, authApi } from '../../lib/api';
+import { Badge, Dropdown, Menu, Spin, Button } from 'antd';
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -54,10 +55,66 @@ export default function Header() {
     CANDIDATE: { label: 'Ứng viên', icon: 'person', color: '#3674c5' },
     EMPLOYER: { label: 'Nhà tuyển dụng', icon: 'business', color: '#059669' },
     ADMIN: { label: 'Admin', icon: 'admin_panel_settings', color: '#8b5cf6' },
-    CONTENT_MANAGER: { label: 'Content', icon: 'edit_note', color: '#f59e0b' },
+
   };
 
   const userRole = user ? roleLabel[user.role] : null;
+
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!isAuthenticated) return;
+      try {
+        const res = await authApi.getNotifications();
+        if (res.status === 'success') {
+          setNotifications(res.data.notifications);
+          setUnreadCount(res.data.unreadCount);
+        }
+      } catch (err) {
+        // ignore errors silently
+      }
+    };
+    
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 120000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await authApi.readAllNotifications();
+      setUnreadCount(0);
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const notificationItems = notifications.length > 0 ? notifications.map(notif => ({
+    key: notif._id,
+    label: (
+      <div className={`p-4 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors ${!notif.is_read ? 'bg-blue-50' : ''}`} style={{ width: 300, whiteSpace: 'normal' }}>
+        <div className="font-semibold text-gray-800 text-[14px] mb-1">{notif.title}</div>
+        <div className="text-gray-600 text-[13px]">{notif.message}</div>
+      </div>
+    )
+  })) : [{
+    key: 'empty',
+    label: <div className="p-4 text-center text-gray-500 w-64">Không có thông báo nào</div>
+  }];
+
+  if (notifications.length > 0 && unreadCount > 0) {
+    notificationItems.unshift({
+      key: 'mark-read',
+      label: (
+        <div className="text-center text-blue-600 hover:text-blue-700 font-medium py-1 text-sm border-b border-gray-200" onClick={(e) => { e.stopPropagation(); handleMarkAllRead(); }}>
+          Đánh dấu tất cả đã đọc
+        </div>
+      )
+    });
+  }
 
   // ─── User Avatar button ─────────────────────────────────────────
   const UserButton = ({ isMobile = false }) => {
@@ -398,12 +455,15 @@ export default function Header() {
                   title="Việc đã lưu">
                   <span className="mi">bookmark_border</span>
                 </button>
-                <button className={`hidden md:flex w-9 h-9 items-center justify-center rounded-full transition-all relative
-                  ${transparent ? 'text-white hover:bg-white/15' : 'text-[#6b7280] hover:bg-[#f3f4f6]'}`}
-                  title="Thông báo">
-                  <span className="mi">notifications_none</span>
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
-                </button>
+                <Dropdown menu={{ items: notificationItems }} trigger={['click']} placement="bottomRight" arrow>
+                  <button className={`hidden md:flex w-9 h-9 items-center justify-center rounded-full transition-all relative
+                    ${transparent ? 'text-white hover:bg-white/15' : 'text-[#6b7280] hover:bg-[#f3f4f6]'}`}
+                    title="Thông báo">
+                    <Badge count={unreadCount} size="small" offset={[-2, 4]}>
+                      <span className="mi" style={{ color: transparent ? '#fff' : '#6b7280' }}>notifications_none</span>
+                    </Badge>
+                  </button>
+                </Dropdown>
               </>
             )}
             <UserButton />

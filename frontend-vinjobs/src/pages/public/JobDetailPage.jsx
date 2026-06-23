@@ -1,19 +1,43 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { mockJobs, jobTypeLabels, jobLevelLabels } from '../../data/mockData';
-import { jobsApi, applicationsApi } from '../../lib/api';
+import { formatSalary, jobTypeLabels, jobLevelLabels } from '../../utils/format';
+import { jobsApi, applicationsApi, getImageUrl, cvApi, uploadApi } from '../../lib/api';
 import { userStorage } from '../../lib/api';
 import { toast } from 'react-hot-toast';
 
 /* ── helpers ── */
-function salaryTextRed(min, max) {
-  if (!min && !max) return 'Thoả thuận';
+function salaryTextRed(min, max, negotiable) {
+  if (negotiable || (!min && !max)) return 'Thoả thuận';
   const minText = ((min || 0) / 1_000_000).toFixed(0);
   const maxText = ((max || 0) / 1_000_000).toFixed(0);
   if (minText === '0') return `Lên đến ${maxText} triệu/tháng`;
   if (maxText === '0' || maxText === 'Infinity') return `Từ ${minText} triệu/tháng`;
   return `${minText} – ${maxText} triệu/tháng`;
 }
+
+const JOB_TYPES = {
+  FULL_TIME: 'Toàn thời gian',
+  PART_TIME: 'Bán thời gian',
+  INTERNSHIP: 'Thực tập',
+  FREELANCE: 'Cộng tác viên / Freelance',
+  CONTRACT: 'Hợp đồng'
+};
+
+const BENEFITS_MAP = {
+  insurance: 'Bảo hiểm',
+  bonus: 'Thưởng',
+  training: 'Đào tạo',
+  lunch: 'Phụ cấp ăn trưa',
+  gym: 'Phòng tập thể hình',
+  remote: 'Làm việc từ xa',
+  team_building: 'Du lịch / Team building',
+  flexible: 'Giờ làm linh hoạt',
+  travel: 'Phụ cấp công tác',
+  extra_leave: 'Nghỉ phép thêm',
+  laptop: 'Cấp thiết bị (Laptop/Macbook)',
+  health_check: 'Khám sức khỏe',
+  other: 'Khác'
+};
 
 /* ════════════════════════════════════════════════════════════
    MAIN
@@ -28,11 +52,20 @@ export default function JobDetailPage() {
   const [stickyShow, setStickyShow] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
-  const [activeTab, setActiveTab] = useState('photos');
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
+  const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   const headerRef = useRef(null);
   const user = userStorage.get();
+
+  const [relatedJobs, setRelatedJobs] = useState([]);
+  
+  // Application & CV States
+  const [hasApplied, setHasApplied] = useState(false);
+  const [myCvs, setMyCvs] = useState([]);
+  const [useExistingCv, setUseExistingCv] = useState(true);
+  const [selectedCvId, setSelectedCvId] = useState('');
+  const [newCvFile, setNewCvFile] = useState(null);
 
   useEffect(() => {
     const fetchJob = async () => {
@@ -40,7 +73,33 @@ export default function JobDetailPage() {
       try {
         const res = await jobsApi.get(id);
         if (res.status === 'success') {
-          setJob(res.data.job);
+          const currentJob = res.data.job;
+          setJob(currentJob);
+          
+          if (currentJob.company_id?._id || currentJob.company_id?.id) {
+            try {
+              const relatedRes = await jobsApi.search({ 
+                company_id: currentJob.company_id._id || currentJob.company_id.id,
+                limit: 5
+              });
+              if (relatedRes.status === 'success') {
+                setRelatedJobs(relatedRes.data.jobs.filter(j => j._id !== id).slice(0, 4));
+              }
+            } catch (e) {
+              console.error('Failed to fetch related jobs', e);
+            }
+          }
+
+          if (user?.role === 'CANDIDATE') {
+            try {
+              const appRes = await applicationsApi.checkApplied(id);
+              if (appRes.status === 'success' && appRes.data?.applied) {
+                setHasApplied(true);
+              }
+            } catch (e) {
+              console.error('Failed to check applied status', e);
+            }
+          }
         }
       } catch (err) {
         console.error('Failed to fetch job', err);
@@ -49,7 +108,7 @@ export default function JobDetailPage() {
       }
     };
     fetchJob();
-  }, [id]);
+  }, [id, user?.role]);
 
   useEffect(() => {
     const handler = () => {
@@ -62,6 +121,66 @@ export default function JobDetailPage() {
     return () => window.removeEventListener('scroll', handler);
   }, []);
 
+  const handleToggleSave = async () => {
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để lưu tin');
+      return;
+    }
+    if (user.role !== 'CANDIDATE') {
+      toast.error('Chỉ ứng viên mới có thể lưu tin');
+      return;
+    }
+    try {
+      const res = await savedJobsApi.toggle(job?._id || id);
+      if (res.status === 'success') {
+        setSaved(res.data.saved);
+        if (res.data.saved) {
+          toast.success('Đã lưu việc làm');
+        } else {
+          toast.success('Đã bỏ lưu việc làm');
+        }
+      }
+    } catch (error) {
+      toast.error('Lỗi khi lưu tin');
+    }
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success('Đã sao chép đường dẫn');
+  };
+
+  const handleOpenApplyModal = async () => {
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để ứng tuyển');
+      return;
+    }
+    if (user.role !== 'CANDIDATE') {
+      toast.error('Chỉ ứng viên mới có thể ứng tuyển');
+      return;
+    }
+    if (hasApplied) {
+      toast.error('Bạn đã ứng tuyển công việc này rồi');
+      return;
+    }
+    
+    // Fetch user CVs
+    try {
+      const res = await cvApi.getMyCVs();
+      if (res.status === 'success' && res.data?.cvs?.length > 0) {
+        setMyCvs(res.data.cvs);
+        setSelectedCvId(res.data.cvs[0]._id);
+        setUseExistingCv(true);
+      } else {
+        setUseExistingCv(false);
+      }
+    } catch (err) {
+      console.error('Failed to fetch CVs', err);
+    }
+    
+    setShowApplyModal(true);
+  };
+
   const handleApply = async () => {
     if (!user) {
       toast.error('Vui lòng đăng nhập để ứng tuyển');
@@ -71,11 +190,47 @@ export default function JobDetailPage() {
       toast.error('Chỉ ứng viên mới có thể ứng tuyển');
       return;
     }
+    
     setApplying(true);
     try {
-      const res = await applicationsApi.apply(id, null, coverLetter);
+      let finalCvId = selectedCvId;
+
+      if (!useExistingCv) {
+        if (!newCvFile) {
+          toast.error('Vui lòng chọn file CV để tải lên');
+          setApplying(false);
+          return;
+        }
+
+        // Upload new CV document
+        const formData = new FormData();
+        formData.append('document', newCvFile);
+        const uploadRes = await uploadApi.uploadDocument(formData);
+        
+        if (uploadRes.status === 'success') {
+          // Create CV record
+          const cvRes = await cvApi.uploadCV({
+            title: newCvFile.name,
+            file_path: uploadRes.data.url
+          });
+          if (cvRes.status === 'success') {
+            finalCvId = cvRes.data.cv._id;
+          }
+        } else {
+          throw new Error('Upload CV thất bại');
+        }
+      } else {
+        if (!finalCvId) {
+          toast.error('Vui lòng chọn CV để ứng tuyển');
+          setApplying(false);
+          return;
+        }
+      }
+
+      const res = await applicationsApi.apply(id, finalCvId, coverLetter);
       if (res.status === 'success') {
         toast.success('Ứng tuyển thành công!');
+        setHasApplied(true);
         setShowApplyModal(false);
       }
     } catch (err) {
@@ -106,96 +261,12 @@ export default function JobDetailPage() {
     );
   }
 
-  const relatedJobs = mockJobs.filter(j => j.id !== job.id).slice(0, 4);
-  const fakePhone   = '090' + Math.floor(Math.random() * 9000000 + 1000000);
+  const employerPhone = job?.employer_id?.phone || 'Chưa cập nhật';
 
-  /* ── Section data ── */
-  const descSections = [
-    {
-      key: 'desc',
-      label: 'Mô tả công việc & Quyền lợi',
-      content: (
-        <div className="prose-sm text-[14px] text-[#444] leading-relaxed">
-          <p className="mb-3">🌟 <strong>{job?.company_id?.name || 'Công ty'}</strong> tuyển dụng 🌟</p>
-          <p className="font-semibold mb-1">📌 Vị trí tuyển dụng: {job?.title}</p>
-          <p className="mb-3">📍 Địa điểm làm việc: {job?.location}</p>
-          <p className="font-semibold mb-2">📌 Chi tiết công việc:</p>
-          <div className="whitespace-pre-line mb-3">{job?.description}</div>
-          <div className="border border-[#e5e7eb] rounded-lg px-4 py-2 inline-flex items-center gap-2 text-[13px]">
-            <span className="text-[#666]">SĐT Liên hệ: {showPhone ? fakePhone : fakePhone.slice(0, 6) + '****'}</span>
-            {!showPhone && (
-              <button onClick={() => setShowPhone(true)}
-                className="text-primary font-semibold hover:underline">
-                Nhấn để hiện số
-              </button>
-            )}
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'specs',
-      label: 'Đặc điểm công việc',
-      content: (
-        <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-          {[
-            { icon: 'wc',          label: 'Giới tính',            value: 'Không yêu cầu' },
-            { icon: 'groups',      label: 'Số lượng tuyển dụng',  value: '10' },
-            { icon: 'cake',        label: 'Độ tuổi tối thiểu',    value: '18' },
-            { icon: 'work_history',label: 'Ngành nghề',            value: 'Đa ngành' },
-            { icon: 'elderly',     label: 'Độ tuổi tối đa',       value: '40' },
-            { icon: 'work_outline',label: 'Loại công việc',        value: jobTypeLabels[job?.type] || 'Toàn thời gian' },
-            { icon: 'school',      label: 'Trình độ học vấn',      value: 'Không yêu cầu' },
-            { icon: 'payments',    label: 'Hình thức trả lương',   value: 'Theo tháng' },
-            { icon: 'star_outline',label: 'Kinh nghiệm làm việc',  value: jobLevelLabels[job?.level] || 'Không yêu cầu' },
-          ].map(item => (
-            <div key={item.label} className="flex items-start gap-3">
-              <span className="mi text-[18px] text-[#aaa] mt-0.5 shrink-0">{item.icon}</span>
-              <div>
-                <div className="text-[12px] text-[#999]">{item.label}</div>
-                <div className="text-[14px] font-semibold text-[#222]">{item.value}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )
-    }
-  ];
+  /* ── Constants ── */
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#f0f0f0' }}>
-
-      {/* ── Sticky top bar (shows when scrolled past header) ── */}
-      <div className={`fixed top-[var(--spacing-header-height)] left-0 right-0 z-[200] bg-white border-b border-[#e5e7eb] shadow-md transition-all duration-300 ${stickyShow ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}`}>
-        <div className="container flex items-center gap-4 py-2.5">
-          <div className="w-9 h-9 rounded-lg border border-[#e5e7eb] overflow-hidden flex items-center justify-center p-0.5 shrink-0 bg-white">
-            <img src={job.company_id?.logo || '/default-company-logo.png'} alt={job.company_id?.name} className="w-full h-full object-contain"
-              onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_id?.name || 'Company')}&background=random`; }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-[#111] truncate">{job.title}</p>
-            <p className="text-[12px] text-[#ef4444] font-semibold">{salaryTextRed(job.salary_min, job.salary_max)}</p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button onClick={() => setSaved(v => !v)}
-              className={`p-2 rounded-full border border-[#ddd] transition-colors ${saved ? 'text-[#ef4444] border-[#ef4444] bg-[#fff5f5]' : 'text-[#aaa] hover:text-[#ef4444]'}`}>
-              <span className="mi text-[18px]">{saved ? 'favorite' : 'favorite_border'}</span>
-            </button>
-            <button className="px-5 py-2 border border-[#ddd] rounded-full text-[13px] font-semibold text-[#444] hover:border-primary hover:text-primary transition-colors">
-              Chat
-            </button>
-            <button className="px-5 py-2 border border-[#333] rounded-full text-[13px] font-semibold text-[#333] hover:bg-[#f5f5f5] transition-colors">
-              Hiện số {showPhone ? fakePhone : fakePhone.slice(0, 6) + '****'}
-            </button>
-            <button 
-              onClick={() => setShowApplyModal(true)}
-              className="px-6 py-2 bg-primary text-white rounded-full text-[13px] font-bold hover:bg-primary-dark transition-colors flex items-center gap-1.5">
-              <span className="mi text-[16px]">person</span>
-              Ứng tuyển
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* ── Breadcrumb ── */}
       <div className="bg-white border-b border-[#e5e7eb] py-2.5">
@@ -214,251 +285,216 @@ export default function JobDetailPage() {
         </div>
       </div>
 
-      <div className="container py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
+      <div className="container py-4 pb-24 lg:pb-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 items-start">
 
-          {/* ═══ MAIN CONTENT ═══ */}
-          <div className="space-y-3">
-
-            {/* ── Job header card ── */}
-            <div ref={headerRef} className="bg-white rounded-xl border border-[#e5e7eb] p-5">
-              {/* Top: logo + title */}
-              <div className="flex gap-4 mb-4">
-                <div className="w-[72px] h-[72px] rounded-xl border border-[#e5e7eb] overflow-hidden shrink-0 flex items-center justify-center bg-white p-1.5">
+          {/* ═══ MAIN CONTENT (LEFT) ═══ */}
+          <div className="space-y-4">
+            {/* Header Card */}
+            <div ref={headerRef} className="bg-white rounded-xl p-4 sm:p-5">
+              <div className="flex gap-4">
+                {/* Logo */}
+                <div className="w-[80px] h-[80px] rounded-xl overflow-hidden shrink-0 flex items-center justify-center bg-white p-1">
                   <img
-                    src={job.company_id?.logo || '/default-company-logo.png'}
-                    alt={job.company_id?.name}
+                    src={job.company_id?.logo ? getImageUrl(job.company_id.logo) : '/default-company-logo.png'}
+                    alt={job.company_id?.name || 'Company Logo'}
                     className="w-full h-full object-contain"
-                    onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_id?.name || 'Company')}&background=random&size=120`; }}
+                    onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_id?.name || 'Company')}&background=random&size=160`; }}
                   />
                 </div>
+                {/* Title & Company */}
                 <div className="flex-1">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    {job.badge === 'hot' && (
-                      <span className="px-2 py-0.5 bg-[#ef4444] text-white text-[10px] font-bold rounded">⚡ Tuyển gấp</span>
-                    )}
-                    {job.badge === 'premium' && (
-                      <span className="px-2 py-0.5 bg-[#f59e0b] text-white text-[10px] font-bold rounded">⭐ Đối Tác</span>
-                    )}
-                    {job.badge === 'new' && (
-                      <span className="px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded">✨ Mới</span>
-                    )}
-                  </div>
-                  <h1 className="text-[18px] font-bold text-[#111] leading-snug mb-1">{job.title}</h1>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[13px] font-semibold text-[#555]">{job.company_id?.name || 'VinJobs'}</span>
+                  <h1 className="text-[18px] sm:text-[20px] font-bold text-[#111] leading-snug mb-1">{job.title}</h1>
+                  <div className="flex items-center gap-1.5 text-[13px] text-[#555]">
+                    <span className="font-semibold">{job.company_id?.name || 'VinJobs'}</span>
                     <span className="mi text-[16px] text-primary" title="Đã xác thực">verified</span>
                   </div>
                 </div>
-                <button className="self-start p-1 text-[#ccc] hover:text-[#888] transition-colors">
-                  <span className="mi text-[22px]">more_vert</span>
+              </div>
+
+              {/* Salary */}
+              <div className="mt-4 mb-2">
+                <span className="text-[18px] sm:text-[20px] font-bold text-[#ef4444]">{salaryTextRed(job.salary_min, job.salary_max, job.salary_negotiable)}</span>
+              </div>
+
+              {/* Location */}
+              <div className="flex items-start gap-1.5 text-[13px] text-[#555] mb-3">
+                <span className="mi text-[18px] text-[#aaa] shrink-0">location_on</span>
+                <span className="font-medium mt-0.5">{job.location}</span>
+              </div>
+
+              {/* Meta */}
+              <div className="flex items-center justify-between text-[13px] text-[#888] mb-4">
+                <div className="flex items-center gap-2">
+                  <span>{job.postedAt || 'Vừa xong'}</span>
+                  <span>·</span>
+                  <span>{job.contacts || 0} Liên Hệ</span>
+                </div>
+                <button onClick={handleShare} className="flex items-center gap-1 text-[#444] hover:text-[#2563eb] transition-colors font-medium ml-2 border-l border-[#ddd] pl-3">
+                  <span className="mi text-[20px]">share</span>
+                  Chia sẻ
+                </button>
+                <button onClick={handleToggleSave} className="flex items-center gap-1 text-[#444] hover:text-[#ef4444] transition-colors font-medium ml-2 border-l border-[#ddd] pl-3">
+                  <span className="mi text-[20px]">{saved ? 'favorite' : 'favorite_border'}</span>
+                  Lưu tin
                 </button>
               </div>
 
-              {/* Salary + benefit tags */}
-              <div className="mb-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[16px] font-bold text-[#ef4444]">{salaryTextRed(job.salary_min, job.salary_max)}</span>
-                  {job.badge === 'premium' && (
-                    <span className="px-2 py-0.5 bg-[#dcfce7] border border-[#86efac] text-[#16a34a] text-[11px] font-bold rounded-full">✓ Lương tốt</span>
-                  )}
-                  <span className="px-2 py-0.5 bg-[#eff6ff] border border-[#bfdbfe] text-[#2563eb] text-[11px] font-medium rounded-full">Bảo hiểm</span>
-                  <span className="px-2 py-0.5 bg-[#fef3c7] border border-[#fde68a] text-[#d97706] text-[11px] font-medium rounded-full">Lương tháng 13</span>
-                </div>
-              </div>
-
-              {/* Address */}
-              <div className="mb-2">
-                <div className="flex items-start gap-1.5 text-[13px] text-[#555]">
-                  <span className="mi text-[16px] text-[#aaa] mt-0.5 shrink-0">location_on</span>
-                  <div>
-                    <span className="font-medium">{job.location}</span>
-                    {job.location.includes('TP.HCM') && (
-                      <div className="text-[12px] text-[#999]">Tp Hồ Chí Minh</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Posted + contacts */}
-              <div className="text-[12px] text-[#aaa] mb-4">
-                {job.postedAt} · {job.contacts} Liên Hệ
-              </div>
-
-              {/* Info boxes: 3 cols */}
-              <div className="grid grid-cols-3 gap-0 border border-[#e5e7eb] rounded-xl overflow-hidden mb-4">
+              {/* Quick Info Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-4 border-t border-[#f0f0f0]">
                 {[
                   { icon: 'payments',    label: 'HT trả lương', value: 'Theo tháng' },
-                  { icon: 'school',      label: 'Học vấn',       value: 'Không yêu cầu' },
-                  { icon: 'star_outline',label: 'Kinh nghiệm',   value: jobLevelLabels[job?.level] || 'Không yêu cầu' },
+                  { icon: 'school',      label: 'Học vấn',       value: job.education || 'Không yêu cầu' },
+                  { icon: 'star_outline',label: 'Kinh nghiệm',   value: job.experience || jobLevelLabels[job?.level] || 'Không yêu cầu' },
+                  { icon: 'work_outline',label: 'Loại hình',     value: JOB_TYPES[job?.type] || job?.type || 'Toàn thời gian' },
+                  { icon: 'wc',          label: 'Giới tính',     value: job.gender || 'Không yêu cầu' },
+                  { icon: 'cake',        label: 'Độ tuổi',       value: (job?.age_min || job?.age_max) ? `Từ ${job?.age_min || 18} - ${job?.age_max || 60} tuổi` : 'Không yêu cầu' }
                 ].map((info, i) => (
-                  <div key={info.label}
-                    className={`flex items-center gap-2.5 px-4 py-3 ${i < 2 ? 'border-r border-[#e5e7eb]' : ''}`}>
-                    <div className="w-8 h-8 rounded-lg bg-[#eff6ff] flex items-center justify-center shrink-0">
-                      <span className="mi text-[16px] text-primary">{info.icon}</span>
-                    </div>
-                    <div>
-                      <div className="text-[11px] text-[#999]">{info.label}</div>
-                      <div className="text-[13px] font-bold text-[#222]">{info.value}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setSaved(v => !v)}
-                  className={`w-10 h-10 flex items-center justify-center rounded-full border transition-all
-                    ${saved ? 'border-[#ef4444] text-[#ef4444] bg-[#fff5f5]' : 'border-[#ddd] text-[#aaa] hover:text-[#ef4444] hover:border-[#ef4444]'}`}>
-                  <span className="mi text-[20px]">{saved ? 'favorite' : 'favorite_border'}</span>
-                </button>
-                <button className="w-10 h-10 flex items-center justify-center rounded-full border border-[#ddd] text-[#aaa] hover:text-primary hover:border-primary transition-all">
-                  <span className="mi text-[20px]">share</span>
-                </button>
-                <button className="px-5 py-2.5 border border-[#ddd] rounded-full text-[13px] font-semibold text-[#444] hover:border-primary hover:text-primary transition-colors">
-                  Chat
-                </button>
-                <button
-                  onClick={() => setShowPhone(v => !v)}
-                  className="px-5 py-2.5 border border-[#333] rounded-full text-[13px] font-semibold text-[#333] hover:bg-[#f5f5f5] transition-colors">
-                  Hiện số {showPhone ? fakePhone : fakePhone.slice(0, 6) + '****'}
-                </button>
-                <button 
-                  onClick={() => setShowApplyModal(true)}
-                  className="flex-1 py-2.5 bg-primary text-white rounded-full text-[14px] font-bold hover:bg-primary-dark transition-colors flex items-center justify-center gap-1.5">
-                  <span className="mi text-[18px]">person</span>
-                  Ứng tuyển
-                </button>
-              </div>
-            </div>
-
-            {/* ── Company photos ── */}
-            <div className="bg-white rounded-xl border border-[#e5e7eb] p-5">
-              <div className="flex gap-4 mb-4 border-b border-[#e5e7eb]">
-                {['Hình ảnh', 'Mô tả công việc & Quyền lợi', 'Đặc điểm công việc'].map((tab, i) => {
-                  const keys = ['photos', 'desc', 'specs'];
-                  return (
-                    <button key={tab}
-                      onClick={() => setActiveTab(keys[i])}
-                      className={`pb-3 text-[13px] font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap
-                        ${activeTab === keys[i] ? 'border-primary text-primary' : 'border-transparent text-[#888] hover:text-[#444]'}`}>
-                      {tab}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Photos tab */}
-              {activeTab === 'photos' && (
-                <div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
-                      'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=300&h=200&fit=crop',
-                      'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=300&h=200&fit=crop',
-                      'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=300&h=200&fit=crop',
-                      'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=300&h=200&fit=crop',
-                      'https://images.unsplash.com/photo-1571171637578-41bc2dd41cd2?w=300&h=200&fit=crop',
-                    ].map((url, i) => (
-                      <div key={i} className="aspect-video rounded-lg overflow-hidden bg-[#f5f5f5]">
-                        <img src={url} alt={`Ảnh ${i+1}`} className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Description tab */}
-              {activeTab === 'desc' && (
-                <div>
-                  <h2 className="text-[15px] font-bold text-[#222] mb-4">Mô tả công việc & Quyền lợi</h2>
-                  {descSections[0].content}
-                </div>
-              )}
-
-              {/* Specs tab */}
-              {activeTab === 'specs' && (
-                <div>
-                  <h2 className="text-[15px] font-bold text-[#222] mb-4">Đặc điểm công việc</h2>
-                  {descSections[1].content}
-                </div>
-              )}
-            </div>
-
-            {/* ── Related jobs from same company ── */}
-            <div className="bg-white rounded-xl border border-[#e5e7eb] p-5">
-              <h2 className="text-[15px] font-bold text-[#222] mb-4">Việc làm khác cùng công ty</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {relatedJobs.slice(0, 2).map(rj => (
-                  <Link key={rj.id} to={`/jobs/${rj.id}`}
-                    className="flex gap-3 p-3 border border-[#e5e7eb] rounded-xl hover:border-primary hover:shadow-sm transition-all group">
-                    <div className="w-11 h-11 rounded-lg border border-[#e5e7eb] overflow-hidden shrink-0 flex items-center justify-center p-0.5 bg-white">
-                      <img src={rj.company.logo} alt={rj.company.name} className="w-full h-full object-contain"
-                        onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(rj.company.name)}&background=random`; }} />
+                  <div key={i} className="flex items-center gap-2.5 bg-[#f9f9f9] p-2.5 rounded-lg">
+                    <div className="w-8 h-8 rounded-full bg-white border border-[#ddd] flex items-center justify-center shrink-0">
+                      <span className="mi text-[16px] text-[#666]">{info.icon}</span>
                     </div>
                     <div className="min-w-0">
-                      {rj.badge === 'premium' && (
-                        <span className="px-1.5 py-0.5 bg-[#f59e0b] text-white text-[9px] font-bold rounded mr-1">⭐ Đối Tác</span>
-                      )}
-                      {rj.badge === 'hot' && (
-                        <span className="px-1.5 py-0.5 bg-[#ef4444] text-white text-[9px] font-bold rounded mr-1">⚡ Tuyển gấp</span>
-                      )}
-                      <p className="text-[13px] font-semibold text-[#111] group-hover:text-primary transition-colors line-clamp-1 mt-0.5">{rj.title}</p>
-                      <p className="text-[11px] text-[#888]">{rj.company.name}</p>
-                      <p className="text-[12px] font-bold text-[#ef4444]">{formatSalary(rj.salary)}</p>
+                      <div className="text-[11px] text-[#888] truncate">{info.label}</div>
+                      <div className="text-[13px] font-semibold text-[#222] truncate">{info.value}</div>
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             </div>
+
+            {/* Description Card */}
+            <div className="bg-white rounded-xl p-4 sm:p-5">
+              <h2 className="text-[16px] font-bold text-[#111] mb-4">Đặc điểm công việc</h2>
+              
+              <div className="mb-6 space-y-3 text-[14px]">
+                <div className="flex border-b border-dashed border-[#eee] pb-2">
+                  <div className="w-[140px] text-[#666] flex items-center gap-1"><span className="mi text-[18px]">work_history</span> Ngành nghề:</div>
+                  <div className="flex-1 font-semibold text-[#222]">{job?.industry || 'Đa ngành'}</div>
+                </div>
+                <div className="flex border-b border-dashed border-[#eee] pb-2">
+                  <div className="w-[140px] text-[#666] flex items-center gap-1"><span className="mi text-[18px]">groups</span> Số lượng:</div>
+                  <div className="flex-1 font-semibold text-[#222]">{job?.slots ? `${job.slots} người` : 'Không giới hạn'}</div>
+                </div>
+                <div className="flex border-b border-dashed border-[#eee] pb-2">
+                  <div className="w-[140px] text-[#666] flex items-center gap-1"><span className="mi text-[18px]">calendar_month</span> Ngày làm việc:</div>
+                  <div className="flex-1 font-semibold text-[#222]">{job?.working_days?.join(', ') || 'N/A'}</div>
+                </div>
+                <div className="flex border-b border-dashed border-[#eee] pb-2">
+                  <div className="w-[140px] text-[#666] flex items-center gap-1"><span className="mi text-[18px]">access_time</span> Giờ làm việc:</div>
+                  <div className="flex-1 font-semibold text-[#222]">{job?.working_hours?.length === 2 ? `${job.working_hours[0]} - ${job.working_hours[1]}` : 'N/A'}</div>
+                </div>
+              </div>
+
+              <h2 className="text-[16px] font-bold text-[#111] mb-4">Mô tả công việc</h2>
+              <div className="text-[14px] text-[#333] leading-relaxed [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&_p]:mb-2" dangerouslySetInnerHTML={{ __html: job?.description }}></div>
+
+              {job?.requirements && (
+                <>
+                  <h2 className="text-[16px] font-bold text-[#111] mt-6 mb-4">Yêu cầu ứng viên</h2>
+                  <div className="text-[14px] text-[#333] leading-relaxed [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&_p]:mb-2" dangerouslySetInnerHTML={{ __html: job?.requirements }}></div>
+                </>
+              )}
+
+              {job?.benefits && job?.benefits.length > 0 && (
+                <>
+                  <h2 className="text-[16px] font-bold text-[#111] mt-6 mb-4">Quyền lợi</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {job.benefits.map((b, i) => (
+                      <span key={i} className="px-3 py-1.5 bg-[#f0fdf4] text-[#16a34a] rounded-lg text-[13px] font-medium border border-[#bbf7d0]">
+                        <span className="mi text-[14px] mr-1 align-text-bottom">check_circle</span>
+                        {BENEFITS_MAP[b] || b}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Company Photos Card */}
+            {job.images && job.images.length > 0 && (
+              <div className="bg-white rounded-xl p-4 sm:p-5">
+                <h2 className="text-[16px] font-bold text-[#111] mb-4">Hình ảnh công ty</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {job.images.map((url, i) => (
+                    <div 
+                      key={i} 
+                      className="aspect-video rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:opacity-90 hover:shadow-md transition-all group relative"
+                      onClick={() => setSelectedImageIndex(i)}
+                    >
+                      <img src={(typeof getImageUrl !== 'undefined' ? getImageUrl : (u) => (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000') + (u.startsWith('/') ? u : '/'+u))(url)} alt={`Ảnh văn phòng ${i+1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                        <span className="mi text-white text-[32px] opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md">zoom_in</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
 
-          {/* ═══ RIGHT SIDEBAR ═══ */}
-          <aside className="space-y-3 lg:sticky lg:top-[calc(var(--spacing-header-height)+8px)]">
+          {/* ═══ RIGHT SIDEBAR (EMPLOYER & ACTIONS) ═══ */}
+          <aside className="space-y-4 lg:sticky lg:top-[calc(var(--spacing-header-height)+16px)]">
+            
+            {/* Employer Card */}
+            <div className="bg-white rounded-xl overflow-hidden">
+              <div className="p-4 border-b border-[#f0f0f0]">
+                <div className="flex items-center gap-3">
+                  <div className="w-[60px] h-[60px] rounded-full overflow-hidden bg-white shrink-0 p-1 border border-gray-100">
+                    <img src={job.company_id?.logo ? getImageUrl(job.company_id.logo) : `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_id?.name || 'V')}&background=random`} 
+                         alt="Nhà tuyển dụng" className="w-full h-full object-contain" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-[15px] font-bold text-[#222] mb-0.5 line-clamp-1">{job.company_id?.name || 'VinJobs'}</div>
+                    <div className="flex items-center gap-1 text-[12px] text-[#666]">
+                      <span className="w-2 h-2 rounded-full bg-green-500"></span> Đang hoạt động
+                    </div>
+                  </div>
+                  <Link to={`/companies/${job.company_id?.slug || job.company_id?._id || job.company_id?.id || ''}`} className="px-3 py-1.5 border border-[#ffba00] text-[#d97706] text-[12px] font-semibold rounded-full hover:bg-[#fffbeb] transition-colors whitespace-nowrap">
+                    Xem trang
+                  </Link>
+                </div>
 
-            {/* Company info */}
-            <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-10 h-10 rounded-lg border border-[#e5e7eb] overflow-hidden shrink-0 flex items-center justify-center p-0.5 bg-white">
-                  <img src={job.company_id?.logo || '/default-company-logo.png'} alt={job.company_id?.name} className="w-full h-full object-contain"
-                    onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_id?.name || 'Company')}&background=random`; }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12px] text-[#888]">Đăng bởi:</div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-[13px] font-bold text-primary truncate">{job.company_id?.name || 'VinJobs'}</span>
-                    <span className="mi text-[15px] text-primary">verified</span>
+                <div className="flex justify-between mt-4 text-[12px] text-[#666] bg-[#f9f9f9] p-2.5 rounded-lg">
+                  <div className="text-center">
+                    <div className="font-bold text-[#222]">85%</div>
+                    Phản hồi chat
+                  </div>
+                  <div className="w-px bg-[#ddd]"></div>
+                  <div className="text-center">
+                    <div className="font-bold text-[#222]">1 năm</div>
+                    Tham gia
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-4 text-[12px] text-[#777] mb-3">
-                <span className="flex items-center gap-1"><span className="mi text-[13px]">business</span>Công ty</span>
-                <span className="flex items-center gap-1"><span className="mi text-[13px]">schedule</span>Hoạt động 2 giờ trước</span>
-              </div>
-              <div className="text-[12px] text-[#777] mb-3">
-                Phản hồi: <span className="font-semibold text-[#444]">72%</span>
-              </div>
-              {job.badge === 'premium' && (
-                <div className="flex items-start gap-2 p-2.5 bg-[#fff7ed] border border-[#fed7aa] rounded-lg mb-3">
-                  <span className="px-1.5 py-0.5 bg-[#f59e0b] text-white text-[10px] font-bold rounded shrink-0">⭐ Đối Tác</span>
-                  <div className="text-[12px] text-[#c2410c]">
-                    Là Đối Tác VinJobs<br />
-                    <span className="text-[#aaa]">Nhà tuyển dụng cam kết xác thực và phản hồi trong 7 ngày.</span>
-                    <span className="text-primary cursor-pointer hover:underline ml-1">Tìm hiểu thêm</span>
-                  </div>
+
+              {/* Action Buttons (Desktop only) */}
+              <div className="p-4 hidden lg:flex flex-col gap-2.5">
+                <button 
+                  onClick={() => setShowPhone(v => !v)}
+                  className="w-full py-3 bg-[#2eaa56] text-white rounded-xl text-[14px] font-bold hover:bg-[#1e8a42] transition-colors flex items-center justify-center gap-2">
+                  <span className="mi text-[20px]">call</span>
+                  {showPhone ? employerPhone : employerPhone.slice(0, Math.max(0, employerPhone.length - 4)) + '****'}
+                </button>
+                <div className="flex gap-2.5">
+                  <button className="flex-1 py-3 border-2 border-primary text-primary rounded-xl text-[14px] font-bold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2">
+                    <span className="mi text-[20px]">chat</span>
+                    Chat
+                  </button>
+                  <button 
+                    onClick={handleOpenApplyModal}
+                    disabled={hasApplied}
+                    className={`flex-1 py-3 text-white rounded-xl text-[14px] font-bold transition-colors flex items-center justify-center gap-2 ${hasApplied ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'}`}>
+                    <span className="mi text-[20px]">{hasApplied ? 'check_circle' : 'send'}</span>
+                    {hasApplied ? 'Đã ứng tuyển' : 'Ứng tuyển'}
+                  </button>
                 </div>
-              )}
-              {job.company_id && (
-                <Link to={`/companies/${job.company_id._id || job.company_id.id}`}
-                  className="flex items-center justify-center w-full py-2 text-[13px] font-semibold text-[#444] border border-[#ddd] rounded-full hover:border-primary hover:text-primary transition-all">
-                  Xem trang công ty
-                </Link>
-              )}
+              </div>
             </div>
 
             {/* Contact form */}
-            <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
+            <div className="bg-white rounded-xl p-4 hidden lg:block">
               <h3 className="text-[14px] font-bold text-[#222] mb-1">Bạn thắc mắc về công việc này?</h3>
               <p className="text-[12px] text-[#888] mb-3">Hãy để lại số điện thoại để nhà tuyển dụng có thể gọi lại cho bạn và trao đổi kỹ hơn nhé!</p>
               <div className="space-y-2.5">
@@ -482,33 +518,52 @@ export default function JobDetailPage() {
                 </div>
                 <p className="text-[11px] text-[#aaa] leading-relaxed">
                   Bằng việc bấm nút "Gửi thông tin", bạn đã đọc và đồng ý{' '}
-                  <span className="text-primary cursor-pointer">Chính sách bảo mật</span> của VinJobs.
+                  <Link to="/privacy-policy" className="text-primary hover:underline">
+                    Chính sách bảo mật
+                  </Link>{' '}
+                  của VinJobs.
                 </p>
-                <button
-                  className="w-full py-3 bg-[#111] text-white text-[13px] font-bold rounded-lg hover:bg-[#333] transition-colors">
+                <button 
+                  onClick={() => {
+                    if (!contactName || !contactPhone) return toast.error('Vui lòng điền đủ họ tên và số điện thoại');
+                    toast.success('Đã gửi thông tin cho nhà tuyển dụng!');
+                    setContactName('');
+                    setContactPhone('');
+                  }}
+                  className="w-full py-2.5 bg-primary text-white rounded-lg text-[13px] font-bold hover:bg-primary-dark transition-colors">
                   Gửi thông tin
                 </button>
               </div>
             </div>
 
+            {/* Report Button */}
+            <div className="text-center pt-2 pb-4 lg:pb-0">
+              <button 
+                onClick={() => toast.success('Đã gửi báo cáo tin đăng. Cảm ơn bạn!')}
+                className="text-[12px] text-[#888] hover:text-[#ef4444] transition-colors underline decoration-[#ccc] underline-offset-2 flex items-center justify-center gap-1 mx-auto"
+              >
+                <span className="mi text-[14px]">flag</span>
+                Có vấn đề với tin đăng này? Báo cáo lừa đảo
+              </button>
+            </div>
+
             {/* Related jobs sidebar */}
-            <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
+            <div className="bg-white rounded-xl p-4 hidden lg:block">
               <h3 className="text-[14px] font-bold text-[#222] mb-3">Việc làm tương tự</h3>
               <div className="space-y-2.5">
-                {relatedJobs.map(rj => (
-                  <Link key={rj.id} to={`/jobs/${rj.id}`}
+                {relatedJobs.length > 0 ? relatedJobs.map(rj => (
+                  <Link key={rj._id || rj.id} to={`/jobs/${rj._id || rj.id}`}
                     className="flex gap-2.5 group hover:bg-[#f9f9f9] rounded-lg p-1.5 -mx-1.5 transition-colors">
-                    <div className="w-9 h-9 rounded border border-[#e5e7eb] overflow-hidden shrink-0 flex items-center justify-center p-0.5 bg-white">
-                      <img src={rj.company.logo} alt={rj.company.name} className="w-full h-full object-contain"
-                        onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(rj.company.name)}&background=random`; }} />
+                    <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center p-0.5 bg-white">
+                      <img src={rj.company_id?.logo ? getImageUrl(rj.company_id.logo) : '/default-company-logo.png'} alt={rj.company_id?.name || 'Công ty'} className="w-full h-full object-contain"
+                        onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(rj.company_id?.name || 'Công ty')}&background=random`; }} />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[12px] font-semibold text-[#222] group-hover:text-primary transition-colors line-clamp-2 leading-tight">{rj.title}</p>
-                      <p className="text-[11px] text-[#888] truncate">{rj.company.name}</p>
-                      <p className="text-[11px] font-bold text-[#ef4444]">{formatSalary(rj.salary)}</p>
+                      <p className="text-[13px] font-semibold text-[#222] group-hover:text-primary transition-colors line-clamp-2 leading-tight">{rj.title}</p>
+                      <p className="text-[12px] font-bold text-[#ef4444] mt-0.5">{salaryTextRed(rj.salary_min, rj.salary_max, rj.salary_negotiable)}</p>
                     </div>
                   </Link>
-                ))}
+                )) : <div className="text-[13px] text-[#888]">Chưa có việc làm nào khác.</div>}
               </div>
               <Link to="/jobs"
                 className="flex items-center justify-center gap-1 mt-3 text-[12px] text-primary font-semibold hover:underline">
@@ -516,54 +571,207 @@ export default function JobDetailPage() {
               </Link>
             </div>
 
-            {/* Deadline */}
-            {job.deadline && (
-              <div className="flex items-center gap-3 bg-[#fff7ed] border border-[#fed7aa] rounded-xl p-4">
-                <span className="mi text-[30px] text-[#f59e0b]">timer</span>
-                <div>
-                  <div className="text-[11px] text-[#888]">Hạn nộp hồ sơ</div>
-                  <div className="text-[15px] font-bold text-[#d97706]">{job.deadline}</div>
-                </div>
-              </div>
-            )}
           </aside>
         </div>
       </div>
 
+      {/* ── Mobile Fixed Bottom Action Bar ── */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#eee] p-3 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-[200]">
+        <div className="flex gap-2 max-w-[600px] mx-auto">
+          <button className="flex items-center justify-center w-12 h-12 bg-[#f0f0f0] text-[#333] rounded-xl hover:bg-[#e0e0e0] transition-colors shrink-0">
+            <span className="mi text-[24px]">chat</span>
+          </button>
+          <button 
+            onClick={() => setShowPhone(v => !v)}
+            className="flex-1 h-12 bg-[#2eaa56] text-white rounded-xl text-[14px] font-bold hover:bg-[#1e8a42] transition-colors flex items-center justify-center gap-1.5">
+            <span className="mi text-[20px]">call</span>
+            {showPhone ? employerPhone : 'Gọi điện'}
+          </button>
+          <button 
+            onClick={handleOpenApplyModal}
+            disabled={hasApplied}
+            className={`flex-1 h-12 text-white rounded-xl text-[14px] font-bold transition-colors flex items-center justify-center gap-1.5 ${hasApplied ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'}`}>
+            <span className="mi text-[20px]">{hasApplied ? 'check_circle' : 'send'}</span>
+            {hasApplied ? 'Đã ứng tuyển' : 'Ứng tuyển'}
+          </button>
+        </div>
+      </div>
       {/* Apply Modal */}
       {showApplyModal && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-[500px] overflow-hidden">
-            <div className="p-5 border-b border-[#e5e7eb] flex items-center justify-between bg-[#f8fafc]">
-              <h3 className="text-[16px] font-bold text-[#111827]">Ứng tuyển: {job.title}</h3>
+            <div className="p-4 border-b border-[#e5e7eb] flex items-center justify-between">
+              <h3 className="text-[16px] font-bold text-[#111827]">Thông tin ứng tuyển</h3>
               <button onClick={() => setShowApplyModal(false)} className="text-[#9ca3af] hover:text-[#111827] transition-colors">
                 <span className="mi text-[24px]">close</span>
               </button>
             </div>
-            <div className="p-5">
-              <div className="mb-4">
-                <label className="block text-[13px] font-semibold text-[#374151] mb-1.5">Thư giới thiệu (Cover Letter)</label>
+            
+            <div className="p-5 bg-[#f9f9f9]">
+              <h4 className="text-[14px] font-bold text-[#333] mb-3">Thông tin cá nhân</h4>
+              <div className="bg-white rounded-lg border border-[#e5e7eb] p-4 space-y-4">
+                <div>
+                  <div className="text-[14px] font-bold text-[#111]">{user?.name || user?.full_name || 'Tên người dùng'}</div>
+                  <div className="text-[12px] text-[#666]">Họ và tên</div>
+                </div>
+                
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-[14px] font-bold text-[#111]">
+                      {user?.phone || 'Chưa cập nhật'}
+                      <span className={`ml-2 text-[12px] font-normal ${user?.status === 'ACTIVE' ? 'text-[#16a34a]' : 'text-[#ef4444]'}`}>
+                        ({user?.status === 'ACTIVE' ? 'Đã xác thực' : 'Chưa xác thực'})
+                      </span>
+                    </div>
+                    <div className="text-[12px] text-[#666]">Số điện thoại</div>
+                    {user?.status !== 'ACTIVE' && (
+                      <div className="text-[12px] text-[#ef4444] mt-0.5">Vui lòng xác thực số điện thoại</div>
+                    )}
+                  </div>
+                  {user?.status !== 'ACTIVE' && (
+                    <button onClick={() => toast.info('Vui lòng vào trang cá nhân để xác thực số điện thoại')} className="px-3 py-1.5 border border-[#ef4444] text-[#ef4444] text-[12px] font-semibold rounded-lg hover:bg-[#fff5f5] transition-colors shrink-0">
+                      Xác thực
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <h4 className="text-[14px] font-bold text-[#333] mb-3">Hồ sơ đính kèm (CV)</h4>
+                <div className="bg-white rounded-lg border border-[#e5e7eb] overflow-hidden">
+                  {myCvs.length > 0 && (
+                    <label className={`flex items-start gap-3 p-4 cursor-pointer transition-colors ${useExistingCv ? 'bg-[#f0fdf4]' : 'hover:bg-gray-50'}`}>
+                      <input 
+                        type="radio" 
+                        name="cvOption" 
+                        checked={useExistingCv} 
+                        onChange={() => setUseExistingCv(true)}
+                        className="mt-1 text-primary focus:ring-primary"
+                      />
+                      <div className="flex-1">
+                        <div className="text-[14px] font-bold text-[#111]">Sử dụng CV đã lưu</div>
+                        {useExistingCv && (
+                          <div className="mt-3">
+                            <select 
+                              value={selectedCvId}
+                              onChange={(e) => setSelectedCvId(e.target.value)}
+                              className="w-full border border-[#d1d5db] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-primary"
+                            >
+                              {myCvs.map(cv => (
+                                <option key={cv._id} value={cv._id}>{cv.title}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  )}
+                  
+                  <label className={`flex items-start gap-3 p-4 cursor-pointer transition-colors border-t border-[#e5e7eb] ${!useExistingCv ? 'bg-[#f0fdf4]' : 'hover:bg-gray-50'}`}>
+                    <input 
+                      type="radio" 
+                      name="cvOption" 
+                      checked={!useExistingCv} 
+                      onChange={() => setUseExistingCv(false)}
+                      className="mt-1 text-primary focus:ring-primary"
+                    />
+                    <div className="flex-1">
+                      <div className="text-[14px] font-bold text-[#111]">Tải CV mới từ máy tính</div>
+                      {!useExistingCv && (
+                        <div className="mt-3">
+                          <input 
+                            type="file" 
+                            accept=".pdf,.doc,.docx"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                setNewCvFile(e.target.files[0]);
+                              }
+                            }}
+                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
+                          />
+                          <div className="text-[12px] text-[#666] mt-2">Định dạng hỗ trợ: PDF, DOC, DOCX. Tối đa 5MB.</div>
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-[13px] font-bold text-[#333] mb-1.5">Thư giới thiệu (Không bắt buộc)</label>
                 <textarea
-                  rows="4"
+                  rows="3"
                   value={coverLetter}
                   onChange={(e) => setCoverLetter(e.target.value)}
                   placeholder="Viết vài dòng giới thiệu về bản thân và lý do bạn phù hợp với công việc này..."
                   className="w-full border border-[#d1d5db] rounded-lg px-3.5 py-2.5 text-[14px] outline-none focus:border-primary resize-none"
                 />
               </div>
-              <div className="flex gap-3 justify-end mt-6">
+
+              <p className="text-[11px] text-[#666] leading-relaxed mt-4">
+                Bằng việc bấm nút "Ứng tuyển", bạn đã đọc và đồng ý <Link to="/privacy-policy" className="text-primary hover:underline" target="_blank">Chính sách bảo mật</Link> của VinJobs và cho phép chia sẻ thông tin cá nhân của bạn cho Nhà tuyển dụng để họ liên hệ về cơ hội việc làm.
+              </p>
+
+              <div className="flex gap-3 justify-end mt-5">
                 <button 
                   onClick={() => setShowApplyModal(false)}
-                  className="px-5 py-2 rounded-lg text-[14px] font-semibold text-[#4b5563] bg-[#f3f4f6] hover:bg-[#e5e7eb] transition-colors">
+                  className="px-5 py-2.5 rounded-lg text-[14px] font-semibold text-[#4b5563] bg-[#e5e7eb] hover:bg-[#d1d5db] transition-colors">
                   Hủy
                 </button>
                 <button 
                   onClick={handleApply}
-                  disabled={applying}
-                  className="px-6 py-2 rounded-lg text-[14px] font-bold text-white bg-primary hover:bg-primary-dark transition-colors disabled:opacity-50">
-                  {applying ? 'Đang gửi...' : 'Gửi hồ sơ ứng tuyển'}
+                  disabled={applying || user?.status !== 'ACTIVE'}
+                  className={`px-6 py-2.5 rounded-lg text-[14px] font-bold text-white transition-colors ${applying || user?.status !== 'ACTIVE' ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'}`}>
+                  {applying ? 'Đang gửi...' : 'Ứng tuyển'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Gallery Modal */}
+      {selectedImageIndex !== null && job.images && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/90 backdrop-blur-sm px-4">
+          <button 
+            onClick={() => setSelectedImageIndex(null)}
+            className="absolute top-4 right-4 md:top-6 md:right-6 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors z-[1001]"
+          >
+            <span className="mi text-[24px]">close</span>
+          </button>
+          
+          <div className="relative w-full max-w-[1000px] h-full max-h-[80vh] flex items-center justify-center select-none">
+            {/* Prev Button */}
+            {selectedImageIndex > 0 && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setSelectedImageIndex(selectedImageIndex - 1); }}
+                className="absolute left-2 md:-left-12 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors z-10"
+              >
+                <span className="mi text-[28px]">chevron_left</span>
+              </button>
+            )}
+
+            {/* Image */}
+            <img 
+              src={getImageUrl(job.images[selectedImageIndex])} 
+              alt={`Gallery image ${selectedImageIndex + 1}`} 
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+
+            {/* Next Button */}
+            {selectedImageIndex < job.images.length - 1 && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setSelectedImageIndex(selectedImageIndex + 1); }}
+                className="absolute right-2 md:-right-12 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors z-10"
+              >
+                <span className="mi text-[28px]">chevron_right</span>
+              </button>
+            )}
+
+            {/* Counter */}
+            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 text-white/80 text-[14px] font-medium tracking-widest">
+              {selectedImageIndex + 1} / {job.images.length}
             </div>
           </div>
         </div>

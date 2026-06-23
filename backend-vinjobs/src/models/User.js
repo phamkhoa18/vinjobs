@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ['ADMIN', 'EMPLOYER', 'CANDIDATE', 'CONTENT_MANAGER'],
+        values: ['ADMIN', 'EMPLOYER', 'CANDIDATE'],
         message: '{VALUE} không phải là quyền hợp lệ',
       },
       required: [true, 'Vai trò không được để trống'],

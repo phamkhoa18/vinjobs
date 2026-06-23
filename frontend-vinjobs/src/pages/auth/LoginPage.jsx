@@ -38,7 +38,7 @@ export default function LoginPage() {
         }
 
         const from = location.state?.from;
-        const redirects = { CANDIDATE: '/candidate', EMPLOYER: '/employer', ADMIN: '/admin', CONTENT_MANAGER: '/content/posts' };
+        const redirects = { CANDIDATE: '/candidate', EMPLOYER: '/employer', ADMIN: '/admin' };
         navigate(from || redirects[response.role] || '/', { replace: true });
       } catch (err) {
         setError(err.message);
@@ -62,7 +62,7 @@ export default function LoginPage() {
     try {
       const user = await googleRegister(googleUser.access_token, password, role);
       const from = location.state?.from;
-      const redirects = { CANDIDATE: '/candidate', EMPLOYER: '/employer', ADMIN: '/admin', CONTENT_MANAGER: '/content/posts' };
+      const redirects = { CANDIDATE: '/candidate', EMPLOYER: '/employer', ADMIN: '/admin' };
       navigate(from || redirects[user.role] || '/', { replace: true });
     } catch (err) {
       const msg = err.message || 'Đăng nhập thất bại';
@@ -88,7 +88,7 @@ export default function LoginPage() {
     try {
       const user = await login(email, password, captchaToken);
       const from = location.state?.from;
-      const redirects = { CANDIDATE: '/candidate', EMPLOYER: '/employer', ADMIN: '/admin', CONTENT_MANAGER: '/content/posts' };
+      const redirects = { CANDIDATE: '/candidate', EMPLOYER: '/employer', ADMIN: '/admin' };
       navigate(from || redirects[user.role] || '/', { replace: true });
     } catch (err) {
       const msg = err.message || 'Đăng nhập thất bại';

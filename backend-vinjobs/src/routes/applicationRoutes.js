@@ -9,6 +9,7 @@ router.use(protect);
 // Routes for CANDIDATE
 router.post('/', restrictTo('CANDIDATE'), ApplicationController.applyForJob);
 router.get('/me', restrictTo('CANDIDATE'), ApplicationController.getMyApplications);
+router.get('/check/:jobId', restrictTo('CANDIDATE'), ApplicationController.checkApplied);
 
 // Routes for EMPLOYER
 router.get('/employer/all', restrictTo('EMPLOYER'), ApplicationController.getEmployerApplications);

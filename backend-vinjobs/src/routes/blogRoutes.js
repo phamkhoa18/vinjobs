@@ -12,8 +12,8 @@ router.get('/posts/:slug', blogController.getPost);
 // Protected routes (Content Manager & Admin)
 router.use(protect);
 
-router.post('/categories', restrictTo('CONTENT_MANAGER', 'ADMIN'), blogController.createCategory);
-router.post('/posts', restrictTo('CONTENT_MANAGER', 'ADMIN'), blogController.createPost);
+router.post('/categories', restrictTo('ADMIN'), blogController.createCategory);
+router.post('/posts', restrictTo('ADMIN'), blogController.createPost);
 
 router.patch('/posts/:postId/approve', restrictTo('ADMIN'), blogController.approvePost);
 

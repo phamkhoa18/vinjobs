@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import slugify from 'slugify';
 
 const companySchema = new mongoose.Schema(
   {
@@ -7,6 +8,11 @@ const companySchema = new mongoose.Schema(
       required: [true, 'Tên công ty không được để trống'],
       trim: true,
       maxlength: [200, 'Tên công ty không được vượt quá 200 ký tự'],
+    },
+    slug: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
     description: {
       type: String,
@@ -139,6 +145,26 @@ const companySchema = new mongoose.Schema(
 companySchema.index({ name: 'text', industry: 'text', description: 'text' });
 companySchema.index({ employer_id: 1 });
 companySchema.index({ status: 1 });
+
+// Middleware: Auto generate slug from name
+companySchema.pre('save', async function () {
+  if (!this.isModified('name')) return;
+
+  let baseSlug = slugify(this.name, { lower: true, strict: true, locale: 'vi' });
+  let slug = baseSlug;
+  
+  // Tránh trùng lặp slug
+  const CompanyModel = mongoose.model('Company');
+  let slugExists = await CompanyModel.findOne({ slug });
+  let count = 1;
+  while (slugExists) {
+    slug = `${baseSlug}-${count}`;
+    slugExists = await CompanyModel.findOne({ slug });
+    count++;
+  }
+  
+  this.slug = slug;
+});
 
 const Company = mongoose.model('Company', companySchema);
 

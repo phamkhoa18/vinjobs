@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import slugify from 'slugify';
 
 const jobSchema = new mongoose.Schema(
   {
@@ -7,6 +8,11 @@ const jobSchema = new mongoose.Schema(
       required: [true, 'Tiêu đề công việc không được để trống'],
       trim: true,
       maxlength: [200, 'Tiêu đề không được vượt quá 200 ký tự'],
+    },
+    slug: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
     description: {
       type: String,
@@ -20,9 +26,10 @@ const jobSchema = new mongoose.Schema(
       trim: true,
       maxlength: [200, 'Địa điểm không được vượt quá 200 ký tự'],
     },
-    industry: {
-      type: String,
-      trim: true,
+    category_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Category',
+      required: [true, 'Danh mục công việc không được để trống']
     },
     slots: {
       type: Number,
@@ -74,6 +81,25 @@ const jobSchema = new mongoose.Schema(
     video_url: {
       type: String,
       default: '',
+    },
+    experience: {
+      type: String,
+      default: 'Không yêu cầu',
+    },
+    education: {
+      type: String,
+      default: 'Không yêu cầu',
+    },
+    gender: {
+      type: String,
+      enum: ['Không yêu cầu', 'Nam', 'Nữ'],
+      default: 'Không yêu cầu',
+    },
+    age_min: {
+      type: Number,
+    },
+    age_max: {
+      type: Number,
     },
     type: {
       type: String,
@@ -130,6 +156,26 @@ jobSchema.index({ company_id: 1 });
 jobSchema.index({ employer_id: 1 });
 jobSchema.index({ status: 1 });
 jobSchema.index({ title: 'text', location: 'text' });
+
+// Middleware: Auto generate slug from title
+jobSchema.pre('save', async function () {
+  if (!this.isModified('title')) return;
+
+  let baseSlug = slugify(this.title, { lower: true, strict: true, locale: 'vi' });
+  let slug = baseSlug;
+  
+  // Tránh trùng lặp slug
+  const JobModel = mongoose.model('Job');
+  let slugExists = await JobModel.findOne({ slug });
+  let count = 1;
+  while (slugExists) {
+    slug = `${baseSlug}-${count}`;
+    slugExists = await JobModel.findOne({ slug });
+    count++;
+  }
+  
+  this.slug = slug;
+});
 
 const Job = mongoose.model('Job', jobSchema);
 

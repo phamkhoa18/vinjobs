@@ -2,35 +2,41 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { authApi, userStorage } from '../../lib/api';
 import { toast } from 'react-hot-toast';
+import { Form, Input, Select, Button, Card, Row, Col, Typography, Menu, Space, Modal, DatePicker, Avatar, List, Popconfirm, Tag, Spin } from 'antd';
+import { 
+  UserOutlined, 
+  AimOutlined, 
+  HistoryOutlined, 
+  ToolOutlined, 
+  ReadOutlined,
+  SaveOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  EditOutlined
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 const PROVINCES = ['TP.HCM', 'Hà Nội', 'Đà Nẵng', 'Cần Thơ', 'Hải Phòng', 'Bình Dương', 'Đồng Nai'];
 const INDUSTRIES = ['Công nghệ thông tin', 'Kinh doanh / Sales', 'Kế toán / Tài chính', 'Marketing', 'Nhân sự', 'Thiết kế', 'Xây dựng'];
-
 const SKILLS_POOL = ['React', 'Node.js', 'Python', 'Java', 'TypeScript', 'SQL', 'AWS', 'Docker', 'Figma', 'Adobe XD', 'Photoshop', 'Excel', 'Word', 'PowerPoint', 'Git', 'Agile/Scrum'];
 
 export default function ProfilePage() {
   const [activeSection, setActiveSection] = useState('basic');
   const [saving, setSaving] = useState(false);
-  const [skills, setSkills] = useState([]);
-  const [newSkill, setNewSkill] = useState('');
   const [loading, setLoading] = useState(true);
-
-  const [form, setForm] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    gender: 'Nam',
-    dob: '',
-    address: '',
-    intro: '',
-    currentJob: '',
-    experience: '',
-    level: 'Junior',
-    salary: '',
-    jobType: 'FULL_TIME',
-    province: 'TP.HCM',
-    industry: 'Công nghệ thông tin',
-  });
+  const [form] = Form.useForm();
+  
+  const [skills, setSkills] = useState([]);
+  const [workExperience, setWorkExperience] = useState([]);
+  const [education, setEducation] = useState([]);
+  
+  const [expModal, setExpModal] = useState({ open: false, index: -1 });
+  const [eduModal, setEduModal] = useState({ open: false, index: -1 });
+  const [expForm] = Form.useForm();
+  const [eduForm] = Form.useForm();
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -39,12 +45,13 @@ export default function ProfilePage() {
         if (res.status === 'success') {
           const user = res.data.user;
           const p = user.profile || {};
-          setForm({
-            fullName: user.full_name || user.name || '',
+          
+          form.setFieldsValue({
+            fullName: user.name || '',
             email: user.email || '',
             phone: user.phone || '',
             gender: p.gender || 'Nam',
-            dob: p.dob ? new Date(p.dob).toISOString().split('T')[0] : '',
+            dob: p.dob ? dayjs(p.dob) : null,
             address: p.address || '',
             intro: p.intro || '',
             currentJob: p.currentJob || '',
@@ -54,8 +61,12 @@ export default function ProfilePage() {
             jobType: p.jobType || 'FULL_TIME',
             province: p.province || 'TP.HCM',
             industry: p.industry || 'Công nghệ thông tin',
+            skills: p.skills || [],
           });
+          
           setSkills(p.skills || []);
+          setWorkExperience(p.workExperience || []);
+          setEducation(p.education || []);
         }
       } catch (err) {
         toast.error('Lỗi khi tải thông tin');
@@ -64,294 +75,309 @@ export default function ProfilePage() {
       }
     };
     fetchMe();
-  }, []);
-
-  const SECTIONS = [
-    { id: 'basic', label: 'Thông tin cơ bản', icon: 'person' },
-    { id: 'career', label: 'Mục tiêu nghề nghiệp', icon: 'work' },
-    { id: 'experience', label: 'Kinh nghiệm', icon: 'history_edu' },
-    { id: 'skills', label: 'Kỹ năng', icon: 'build' },
-    { id: 'education', label: 'Học vấn', icon: 'school' },
-  ];
+  }, [form]);
 
   const handleSave = async () => {
-    setSaving(true);
     try {
+      const values = await form.validateFields();
+      setSaving(true);
+      
       const payload = {
-        name: form.fullName,
-        phone: form.phone,
+        name: values.fullName,
+        phone: values.phone,
         profile: {
-          gender: form.gender,
-          dob: form.dob,
-          address: form.address,
-          intro: form.intro,
-          currentJob: form.currentJob,
-          experience: form.experience,
-          level: form.level,
-          salary: form.salary,
-          jobType: form.jobType,
-          province: form.province,
-          industry: form.industry,
-          skills: skills,
+          gender: values.gender,
+          dob: values.dob ? values.dob.format('YYYY-MM-DD') : undefined,
+          address: values.address,
+          intro: values.intro,
+          currentJob: values.currentJob,
+          experience: values.experience,
+          level: values.level,
+          salary: values.salary,
+          jobType: values.jobType,
+          province: values.province,
+          industry: values.industry,
+          skills: values.skills,
+          workExperience,
+          education
         }
       };
+      
       const res = await authApi.updateProfile(payload);
       if (res.status === 'success') {
         toast.success('Lưu hồ sơ thành công!');
         userStorage.set(res.data.user);
       }
     } catch (err) {
-      toast.error('Lỗi khi lưu hồ sơ');
+      toast.error('Vui lòng kiểm tra lại thông tin');
     } finally {
       setSaving(false);
     }
   };
 
-  const addSkill = (skill) => {
-    if (skill && !skills.includes(skill)) {
-      setSkills([...skills, skill]);
-      setNewSkill('');
+  const handleExpSave = async () => {
+    try {
+      const values = await expForm.validateFields();
+      const newList = [...workExperience];
+      if (expModal.index > -1) newList[expModal.index] = values;
+      else newList.push(values);
+      
+      setWorkExperience(newList);
+      setExpModal({ open: false, index: -1 });
+      expForm.resetFields();
+    } catch (err) {
+      // Form validation failed
     }
   };
 
+  const handleEduSave = async () => {
+    try {
+      const values = await eduForm.validateFields();
+      const newList = [...education];
+      if (eduModal.index > -1) newList[eduModal.index] = values;
+      else newList.push(values);
+      
+      setEducation(newList);
+      setEduModal({ open: false, index: -1 });
+      eduForm.resetFields();
+    } catch (err) {
+      // Form validation failed
+    }
+  };
+
+  const deleteExp = (index) => setWorkExperience(workExperience.filter((_, i) => i !== index));
+  const deleteEdu = (index) => setEducation(education.filter((_, i) => i !== index));
+
+  const openExpModal = (index = -1) => {
+    if (index > -1) {
+      expForm.setFieldsValue(workExperience[index]);
+    } else {
+      expForm.resetFields();
+    }
+    setExpModal({ open: true, index });
+  };
+
+  const openEduModal = (index = -1) => {
+    if (index > -1) {
+      eduForm.setFieldsValue(education[index]);
+    } else {
+      eduForm.resetFields();
+    }
+    setEduModal({ open: true, index });
+  };
+
+  if (loading) return <DashboardLayout role="candidate"><div className="flex justify-center p-10"><Spin size="large" /></div></DashboardLayout>;
+
   return (
     <DashboardLayout role="candidate">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 className="text-[22px] font-bold text-[#111827]">Hồ sơ cá nhân</h1>
-          <p className="text-[13px] text-[#6b7280] mt-0.5">Cập nhật thông tin để tăng cơ hội được tuyển dụng</p>
+          <Title level={4} style={{ margin: 0 }}>Hồ sơ cá nhân</Title>
+          <Text type="secondary">Cập nhật thông tin để tăng cơ hội được tuyển dụng</Text>
         </div>
-        <button onClick={handleSave} disabled={saving}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all
-            ${saving ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-primary text-white hover:bg-blue-700'}`}>
-          <span className="mi text-[18px]">{saving ? 'hourglass_empty' : 'save'}</span>
-          {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-        </button>
+        <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
+          Lưu thay đổi
+        </Button>
       </div>
 
-      {/* Avatar + completion */}
-      <div className="bg-white rounded-xl border border-[#e5e7eb] p-6 mb-5 flex items-center gap-5">
-        <div className="relative shrink-0">
-          <img src="https://i.pravatar.cc/100?img=3" alt="" className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg" />
-          <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary text-white rounded-full flex items-center justify-center shadow-md hover:bg-blue-700 transition-colors">
-            <span className="mi text-[14px]">camera_alt</span>
-          </button>
-        </div>
-        <div className="flex-1">
-          <h2 className="text-[17px] font-bold text-[#111827]">{form.fullName}</h2>
-          <p className="text-[13px] text-[#6b7280]">{form.currentJob} · {form.province}</p>
-          <div className="flex items-center gap-2 mt-2">
-            <div className="flex-1 h-2 bg-[#f3f4f6] rounded-full overflow-hidden max-w-[200px]">
-              <div className="h-full bg-primary rounded-full" style={{ width: '70%' }} />
-            </div>
-            <span className="text-[12px] text-[#6b7280]">Hồ sơ 70% hoàn thiện</span>
+      <Card bordered={false} className="shadow-sm" style={{ marginBottom: '24px' }}>
+        <Space size="large">
+          <Avatar size={80} src="https://ui-avatars.com/api/?name=Candidate&background=random" />
+          <div>
+            <Title level={5} style={{ margin: 0 }}>{form.getFieldValue('fullName')}</Title>
+            <Text type="secondary">{form.getFieldValue('currentJob') || 'Chưa cập nhật công việc'} · {form.getFieldValue('province')}</Text>
           </div>
-        </div>
-      </div>
+        </Space>
+      </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-5">
-        {/* Nav */}
-        <div className="bg-white rounded-xl border border-[#e5e7eb] p-2 h-fit">
-          {SECTIONS.map(s => (
-            <button key={s.id} onClick={() => setActiveSection(s.id)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all mb-0.5
-                ${activeSection === s.id ? 'bg-primary text-white' : 'text-[#374151] hover:bg-[#f3f4f6]'}`}>
-              <span className="mi text-[18px]">{s.icon}</span>{s.label}
-            </button>
-          ))}
-        </div>
+      <Row gutter={24}>
+        <Col xs={24} md={6}>
+          <Menu
+            mode="inline"
+            selectedKeys={[activeSection]}
+            onClick={(e) => setActiveSection(e.key)}
+            className="rounded-lg border-0 shadow-sm overflow-hidden"
+            items={[
+              { key: 'basic', icon: <UserOutlined />, label: 'Thông tin cơ bản' },
+              { key: 'career', icon: <AimOutlined />, label: 'Mục tiêu nghề nghiệp' },
+              { key: 'experience', icon: <HistoryOutlined />, label: 'Kinh nghiệm' },
+              { key: 'skills', icon: <ToolOutlined />, label: 'Kỹ năng' },
+              { key: 'education', icon: <ReadOutlined />, label: 'Học vấn' },
+            ]}
+          />
+        </Col>
 
-        {/* Content */}
-        <div className="bg-white rounded-xl border border-[#e5e7eb] p-6">
-          {activeSection === 'basic' && (
-            <div>
-              <h3 className="text-[16px] font-bold text-[#111827] mb-4">Thông tin cơ bản</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { label: 'Họ và tên', key: 'fullName', type: 'text' },
-                  { label: 'Email', key: 'email', type: 'email' },
-                  { label: 'Số điện thoại', key: 'phone', type: 'tel' },
-                  { label: 'Ngày sinh', key: 'dob', type: 'date' },
-                ].map(field => (
-                  <div key={field.key}>
-                    <label className="block text-[12px] font-semibold text-[#374151] mb-1.5">{field.label}</label>
-                    <input type={field.type} value={form[field.key]}
-                      onChange={e => setForm({ ...form, [field.key]: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-[#e5e7eb] rounded-xl text-[14px] text-[#111827] focus:outline-none focus:border-primary transition-colors" />
-                  </div>
-                ))}
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#374151] mb-1.5">Giới tính</label>
-                  <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-[#e5e7eb] rounded-xl text-[14px] text-[#111827] focus:outline-none focus:border-primary transition-colors">
-                    <option>Nam</option><option>Nữ</option><option>Khác</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#374151] mb-1.5">Địa chỉ</label>
-                  <select value={form.province} onChange={e => setForm({ ...form, province: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-[#e5e7eb] rounded-xl text-[14px] text-[#111827] focus:outline-none focus:border-primary transition-colors">
-                    {PROVINCES.map(p => <option key={p}>{p}</option>)}
-                  </select>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-[12px] font-semibold text-[#374151] mb-1.5">Giới thiệu bản thân</label>
-                  <textarea rows={4} value={form.intro} onChange={e => setForm({ ...form, intro: e.target.value })}
-                    className="w-full px-4 py-3 border border-[#e5e7eb] rounded-xl text-[14px] text-[#111827] focus:outline-none focus:border-primary transition-colors resize-none" />
-                </div>
+        <Col xs={24} md={18}>
+          <Card bordered={false} className="shadow-sm">
+            <Form form={form} layout="vertical">
+              <div style={{ display: activeSection === 'basic' ? 'block' : 'none' }}>
+                <Title level={5} className="mb-4">Thông tin cơ bản</Title>
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}><Form.Item label="Họ và tên" name="fullName"><Input /></Form.Item></Col>
+                  <Col xs={24} sm={12}><Form.Item label="Email" name="email"><Input disabled /></Form.Item></Col>
+                  <Col xs={24} sm={12}><Form.Item label="Số điện thoại" name="phone"><Input /></Form.Item></Col>
+                  <Col xs={24} sm={12}><Form.Item label="Ngày sinh" name="dob"><DatePicker className="w-full" format="DD/MM/YYYY" /></Form.Item></Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Giới tính" name="gender">
+                      <Select options={[{value:'Nam',label:'Nam'},{value:'Nữ',label:'Nữ'},{value:'Khác',label:'Khác'}]} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Địa chỉ" name="province">
+                      <Select showSearch options={PROVINCES.map(p => ({ value: p, label: p }))} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={24}>
+                    <Form.Item label="Địa chỉ cụ thể" name="address"><Input /></Form.Item>
+                  </Col>
+                  <Col span={24}>
+                    <Form.Item label="Giới thiệu bản thân" name="intro"><TextArea rows={4} /></Form.Item>
+                  </Col>
+                </Row>
               </div>
-            </div>
-          )}
 
-          {activeSection === 'career' && (
-            <div>
-              <h3 className="text-[16px] font-bold text-[#111827] mb-4">Mục tiêu nghề nghiệp</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { label: 'Vị trí hiện tại', key: 'currentJob', type: 'text' },
-                  { label: 'Số năm kinh nghiệm', key: 'experience', type: 'text' },
-                ].map(field => (
-                  <div key={field.key}>
-                    <label className="block text-[12px] font-semibold text-[#374151] mb-1.5">{field.label}</label>
-                    <input type={field.type} value={form[field.key]}
-                      onChange={e => setForm({ ...form, [field.key]: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-[#e5e7eb] rounded-xl text-[14px] focus:outline-none focus:border-primary transition-colors" />
-                  </div>
-                ))}
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#374151] mb-1.5">Cấp độ</label>
-                  <select value={form.level} onChange={e => setForm({ ...form, level: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-[#e5e7eb] rounded-xl text-[14px] focus:outline-none focus:border-primary transition-colors">
-                    {['Intern', 'Junior', 'Middle', 'Senior', 'Lead', 'Manager'].map(l => <option key={l}>{l}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#374151] mb-1.5">Mức lương mong muốn (triệu)</label>
-                  <input type="text" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-[#e5e7eb] rounded-xl text-[14px] focus:outline-none focus:border-primary transition-colors"
-                    placeholder="VD: 20 - 30" />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#374151] mb-1.5">Ngành nghề</label>
-                  <select value={form.industry} onChange={e => setForm({ ...form, industry: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-[#e5e7eb] rounded-xl text-[14px] focus:outline-none focus:border-primary transition-colors">
-                    {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#374151] mb-1.5">Hình thức làm việc</label>
-                  <select value={form.jobType} onChange={e => setForm({ ...form, jobType: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-[#e5e7eb] rounded-xl text-[14px] focus:outline-none focus:border-primary transition-colors">
-                    <option value="FULL_TIME">Toàn thời gian</option>
-                    <option value="PART_TIME">Bán thời gian</option>
-                    <option value="REMOTE">Từ xa</option>
-                    <option value="HYBRID">Hybrid</option>
-                  </select>
-                </div>
+              <div style={{ display: activeSection === 'career' ? 'block' : 'none' }}>
+                <Title level={5} className="mb-4">Mục tiêu nghề nghiệp</Title>
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}><Form.Item label="Vị trí hiện tại" name="currentJob"><Input /></Form.Item></Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Ngành nghề" name="industry">
+                      <Select showSearch options={INDUSTRIES.map(i => ({ value: i, label: i }))} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Cấp bậc" name="level">
+                      <Select options={[
+                        {value:'Thực tập sinh',label:'Thực tập sinh'},
+                        {value:'Mới đi làm',label:'Mới đi làm'},
+                        {value:'Nhân viên',label:'Nhân viên'},
+                        {value:'Trưởng phòng',label:'Trưởng phòng'}
+                      ]} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Số năm kinh nghiệm" name="experience">
+                      <Select options={[
+                        {value:'Chưa có kinh nghiệm',label:'Chưa có kinh nghiệm'},
+                        {value:'Dưới 1 năm',label:'Dưới 1 năm'},
+                        {value:'1 năm',label:'1 năm'},
+                        {value:'2 năm',label:'2 năm'},
+                        {value:'Trên 3 năm',label:'Trên 3 năm'}
+                      ]} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}><Form.Item label="Mức lương mong muốn" name="salary"><Input placeholder="VD: 15,000,000 VND" /></Form.Item></Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Hình thức làm việc" name="jobType">
+                      <Select options={[
+                        {value:'FULL_TIME',label:'Toàn thời gian'},
+                        {value:'PART_TIME',label:'Bán thời gian'},
+                        {value:'FREELANCE',label:'Freelance'}
+                      ]} />
+                    </Form.Item>
+                  </Col>
+                </Row>
               </div>
-            </div>
-          )}
 
-          {activeSection === 'experience' && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[16px] font-bold text-[#111827]">Kinh nghiệm làm việc</h3>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 border border-primary text-primary rounded-lg text-[12px] font-semibold hover:bg-blue-50 transition-all">
-                  <span className="mi text-[16px]">add</span>Thêm
-                </button>
-              </div>
-              <div className="space-y-4">
-                {[
-                  { title: 'Frontend Developer', company: 'FPT Software', period: '06/2022 - Hiện tại', desc: 'Phát triển giao diện web với ReactJS, TypeScript. Tham gia thiết kế UI/UX, tối ưu performance.' },
-                  { title: 'Junior Frontend', company: 'Tiki', period: '01/2021 - 05/2022', desc: 'Phát triển và maintain các tính năng e-commerce. Làm việc với React, Redux, REST API.' },
-                ].map((exp, i) => (
-                  <div key={i} className="relative pl-5 border-l-2 border-primary pb-4">
-                    <div className="absolute -left-[7px] top-0 w-3 h-3 rounded-full bg-primary" />
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="text-[14px] font-bold text-[#111827]">{exp.title}</h4>
-                        <p className="text-[13px] text-primary font-medium">{exp.company}</p>
-                        <p className="text-[12px] text-[#6b7280] mt-0.5">{exp.period}</p>
-                        <p className="text-[13px] text-[#374151] mt-2 leading-relaxed">{exp.desc}</p>
-                      </div>
-                      <div className="flex gap-1 ml-3 shrink-0">
-                        <button className="w-7 h-7 rounded-lg border border-[#e5e7eb] flex items-center justify-center hover:border-primary hover:text-primary transition-all">
-                          <span className="mi text-[15px]">edit</span>
-                        </button>
-                        <button className="w-7 h-7 rounded-lg border border-[#e5e7eb] flex items-center justify-center hover:border-red-400 hover:text-red-400 transition-all">
-                          <span className="mi text-[15px]">delete</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'skills' && (
-            <div>
-              <h3 className="text-[16px] font-bold text-[#111827] mb-4">Kỹ năng</h3>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {skills.map(skill => (
-                  <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-primary text-[13px] font-medium rounded-lg border border-blue-200">
-                    {skill}
-                    <button onClick={() => setSkills(skills.filter(s => s !== skill))}
-                      className="hover:text-red-500 transition-colors">
-                      <span className="mi text-[14px]">close</span>
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2 mb-4">
-                <input type="text" placeholder="Thêm kỹ năng..." value={newSkill}
-                  onChange={e => setNewSkill(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addSkill(newSkill)}
-                  className="flex-1 px-4 py-2.5 border border-[#e5e7eb] rounded-xl text-[14px] focus:outline-none focus:border-primary transition-colors" />
-                <button onClick={() => addSkill(newSkill)}
-                  className="px-4 py-2.5 bg-primary text-white rounded-xl text-[13px] font-bold hover:bg-blue-700 transition-all">
-                  Thêm
-                </button>
-              </div>
-              <p className="text-[12px] text-[#6b7280] mb-2">Gợi ý:</p>
-              <div className="flex flex-wrap gap-1.5">
-                {SKILLS_POOL.filter(s => !skills.includes(s)).map(s => (
-                  <button key={s} onClick={() => addSkill(s)}
-                    className="px-2.5 py-1 bg-[#f3f4f6] text-[12px] text-[#374151] rounded-lg hover:bg-blue-50 hover:text-primary transition-all">
-                    + {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'education' && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[16px] font-bold text-[#111827]">Học vấn</h3>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 border border-primary text-primary rounded-lg text-[12px] font-semibold hover:bg-blue-50 transition-all">
-                  <span className="mi text-[16px]">add</span>Thêm
-                </button>
-              </div>
-              <div className="relative pl-5 border-l-2 border-primary">
-                <div className="absolute -left-[7px] top-0 w-3 h-3 rounded-full bg-primary" />
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="text-[14px] font-bold text-[#111827]">Đại học Bách Khoa TP.HCM</h4>
-                    <p className="text-[13px] text-primary font-medium">Cử nhân Công nghệ thông tin</p>
-                    <p className="text-[12px] text-[#6b7280] mt-0.5">09/2016 - 06/2020 · GPA: 3.4/4.0</p>
-                  </div>
-                  <div className="flex gap-1 ml-3 shrink-0">
-                    <button className="w-7 h-7 rounded-lg border border-[#e5e7eb] flex items-center justify-center hover:border-primary hover:text-primary transition-all">
-                      <span className="mi text-[15px]">edit</span>
-                    </button>
-                  </div>
+              <div style={{ display: activeSection === 'experience' ? 'block' : 'none' }}>
+                <div className="flex justify-between items-center mb-4">
+                  <Title level={5} style={{ margin: 0 }}>Kinh nghiệm làm việc</Title>
+                  <Button type="dashed" icon={<PlusOutlined />} onClick={() => openExpModal(-1)}>Thêm kinh nghiệm</Button>
                 </div>
+                <List
+                  itemLayout="horizontal"
+                  dataSource={workExperience}
+                  locale={{ emptyText: 'Chưa có kinh nghiệm nào được thêm.' }}
+                  renderItem={(item, index) => (
+                    <List.Item
+                      actions={[
+                        <Button type="text" icon={<EditOutlined />} onClick={() => openExpModal(index)} />,
+                        <Popconfirm title="Xóa kinh nghiệm này?" onConfirm={() => deleteExp(index)}>
+                          <Button type="text" danger icon={<DeleteOutlined />} />
+                        </Popconfirm>
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={<Text strong>{item.title}</Text>}
+                        description={
+                          <Space direction="vertical" size={0}>
+                            <Text>{item.company}</Text>
+                            <Text type="secondary" className="text-xs">{item.period}</Text>
+                            {item.desc && <Text className="mt-2 text-gray-600 block">{item.desc}</Text>}
+                          </Space>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+
+              <div style={{ display: activeSection === 'skills' ? 'block' : 'none' }}>
+                <Title level={5} className="mb-4">Kỹ năng chuyên môn</Title>
+                <Form.Item name="skills">
+                  <Select
+                    mode="tags"
+                    style={{ width: '100%' }}
+                    placeholder="Nhập hoặc chọn kỹ năng"
+                    options={SKILLS_POOL.map(s => ({ value: s, label: s }))}
+                  />
+                </Form.Item>
+              </div>
+
+              <div style={{ display: activeSection === 'education' ? 'block' : 'none' }}>
+                <div className="flex justify-between items-center mb-4">
+                  <Title level={5} style={{ margin: 0 }}>Học vấn</Title>
+                  <Button type="dashed" icon={<PlusOutlined />} onClick={() => openEduModal(-1)}>Thêm học vấn</Button>
+                </div>
+                <List
+                  itemLayout="horizontal"
+                  dataSource={education}
+                  locale={{ emptyText: 'Chưa có học vấn nào được thêm.' }}
+                  renderItem={(item, index) => (
+                    <List.Item
+                      actions={[
+                        <Button type="text" icon={<EditOutlined />} onClick={() => openEduModal(index)} />,
+                        <Popconfirm title="Xóa học vấn này?" onConfirm={() => deleteEdu(index)}>
+                          <Button type="text" danger icon={<DeleteOutlined />} />
+                        </Popconfirm>
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={<Text strong>{item.school}</Text>}
+                        description={
+                          <Space direction="vertical" size={0}>
+                            <Text>{item.degree}</Text>
+                            <Text type="secondary" className="text-xs">{item.period}</Text>
+                          </Space>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              </div>
+
+            </Form>
+          </Card>
+        </Col>
+      </Row>
+
+      <Modal title={expModal.index > -1 ? 'Sửa kinh nghiệm' : 'Thêm kinh nghiệm'} open={expModal.open} onOk={handleExpSave} onCancel={() => setExpModal({ open: false, index: -1 })}>
+        <Form form={expForm} layout="vertical">
+          <Form.Item name="title" label="Chức danh" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="company" label="Công ty" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="period" label="Thời gian"><Input placeholder="VD: 01/2020 - Hiện tại" /></Form.Item>
+          <Form.Item name="desc" label="Mô tả công việc"><TextArea rows={4} /></Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal title={eduModal.index > -1 ? 'Sửa học vấn' : 'Thêm học vấn'} open={eduModal.open} onOk={handleEduSave} onCancel={() => setEduModal({ open: false, index: -1 })}>
+        <Form form={eduForm} layout="vertical">
+          <Form.Item name="school" label="Trường / Tổ chức" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="degree" label="Bằng cấp / Ngành học" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="period" label="Thời gian"><Input placeholder="VD: 2016 - 2020" /></Form.Item>
+        </Form>
+      </Modal>
+
     </DashboardLayout>
   );
 }

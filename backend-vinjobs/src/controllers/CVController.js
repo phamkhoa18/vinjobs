@@ -12,6 +12,16 @@ class CVController {
     const cvs = await cvService.getMyCVs(req.user.id);
     res.status(200).json({ status: 'success', results: cvs.length, data: { cvs } });
   });
+
+  deleteCV = asyncHandler(async (req, res) => {
+    await cvService.deleteCV(req.user.id, req.params.id);
+    res.status(204).json({ status: 'success', data: null });
+  });
+
+  setDefaultCV = asyncHandler(async (req, res) => {
+    const cv = await cvService.setDefaultCV(req.user.id, req.params.id);
+    res.status(200).json({ status: 'success', data: { cv } });
+  });
 }
 
 export default new CVController();

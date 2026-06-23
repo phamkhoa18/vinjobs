@@ -35,7 +35,7 @@ const ROLE_INFO = {
   CANDIDATE: { label: 'Ứng viên', icon: 'person', color: '#3674c5' },
   EMPLOYER: { label: 'Nhà tuyển dụng', icon: 'business', color: '#10b981' },
   ADMIN: { label: 'Admin', icon: 'admin_panel_settings', color: '#8b5cf6' },
-  CONTENT_MANAGER: { label: 'Content', icon: 'edit_note', color: '#f59e0b' },
+
 };
 
 export default function Sidebar({ role = 'candidate' }) {

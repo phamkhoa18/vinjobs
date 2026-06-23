@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { mockPosts } from '../../data/mockData';
+import { blogApi, getImageUrl } from '../../lib/api';
 
 const calloutStyles = {
   lightbulb: { bg: 'bg-warning-50', border: 'border-[#fde68a]', text: 'text-warning', label: 'Gợi ý' },
@@ -16,60 +16,7 @@ function formatViews(n) {
   return n;
 }
 
-function ContentBlock({ block }) {
-  switch (block.type) {
-    case 'intro':
-      return (
-        <p className="text-[16px] leading-[1.85] text-text-secondary font-medium border-l-4 border-primary pl-4 py-1 bg-primary-50 rounded-r-lg">
-          {block.text}
-        </p>
-      );
-    case 'heading':
-      return (
-        <h2 className="text-[18px] font-bold text-text-primary mt-6 mb-2 flex items-center gap-2">
-          <span className="w-1.5 h-5 bg-primary rounded-full inline-block shrink-0" />
-          {block.text}
-        </h2>
-      );
-    case 'paragraph':
-      return <p className="text-[15px] leading-[1.85] text-text-secondary">{block.text}</p>;
-    case 'callout': {
-      const s = calloutStyles[block.icon] || calloutStyles.info;
-      return (
-        <div className={`flex gap-3 items-start ${s.bg} border ${s.border} rounded-xl p-4`}>
-          <span className={`mi text-[26px] ${s.text} shrink-0 mt-0.5`}>{block.icon}</span>
-          <div>
-            <span className={`text-[11px] font-bold uppercase tracking-wider ${s.text} block mb-0.5`}>{s.label}</span>
-            <p className="text-[14px] text-text-secondary leading-relaxed">{block.text}</p>
-          </div>
-        </div>
-      );
-    }
-    case 'list':
-      return (
-        <div>
-          {block.title && <p className="text-[14px] font-semibold text-text-primary mb-2">{block.title}</p>}
-          <ul className="space-y-1.5">
-            {block.items.map((item, i) => (
-              <li key={i} className="flex items-start gap-2 text-[14px] text-text-secondary leading-relaxed">
-                <span className="mi text-[16px] text-primary shrink-0 mt-0.5">check_circle</span>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
-    case 'conclusion':
-      return (
-        <div className="bg-gradient-to-r from-primary-50 to-accent-50 border border-primary-100 rounded-xl p-5 flex gap-3 items-start">
-          <span className="mi text-[28px] text-primary shrink-0">emoji_objects</span>
-          <p className="text-[15px] text-text-secondary leading-[1.85] italic">{block.text}</p>
-        </div>
-      );
-    default:
-      return null;
-  }
-}
+
 
 const categoryColors = {
   'Cẩm nang tìm việc':   { bg: 'bg-primary-50',  text: 'text-primary',  border: 'border-primary-100' },
@@ -78,17 +25,25 @@ const categoryColors = {
 };
 
 export default function BlogDetailPage() {
-  const { id } = useParams();
-  const post = mockPosts.find(p => p.id === parseInt(id));
+  const { id } = useParams(); // actually slug
+  const [post, setPost] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [readProgress, setReadProgress] = useState(0);
 
-  // Random like count per post
   useEffect(() => {
-    if (post) setLikeCount(Math.floor(post.views * 0.08));
-  }, [post]);
+    setLoading(true);
+    blogApi.getPost(id)
+      .then(res => {
+        const data = res?.post || res;
+        setPost(data);
+        setLikeCount(Math.floor((data?.view_count || 0) * 0.08));
+      })
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, [id]);
 
   // Reading progress bar
   useEffect(() => {
@@ -114,6 +69,10 @@ export default function BlogDetailPage() {
     setLikeCount(v => liked ? v - 1 : v + 1);
   };
 
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
   if (!post) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-4">
@@ -127,10 +86,8 @@ export default function BlogDetailPage() {
     );
   }
 
-  const relatedPosts = mockPosts.filter(p => p.id !== post.id && p.category === post.category).slice(0, 3);
-  const otherPosts = mockPosts.filter(p => p.id !== post.id).slice(0, 3 - relatedPosts.length);
-  const sidebarPosts = [...relatedPosts, ...otherPosts].slice(0, 3);
-  const catStyle = categoryColors[post.category] || categoryColors['Tin nổi bật'];
+  const sidebarPosts = []; // TODO fetch related posts if needed
+  const catStyle = categoryColors[post.category_id?.name] || categoryColors['Tin nổi bật'];
 
   return (
     <div className="min-h-screen bg-bg">
@@ -160,17 +117,21 @@ export default function BlogDetailPage() {
             {/* Hero Card */}
             <article className="bg-white rounded-2xl border border-border-main overflow-hidden shadow-card">
               {/* Cover image */}
-              <div className="relative w-full aspect-[16/7] overflow-hidden">
-                <img
-                  src={post.image}
-                  alt={post.title}
-                  className="w-full h-full object-cover"
-                />
+              <div className="relative w-full aspect-[16/7] overflow-hidden bg-gray-100 flex items-center justify-center">
+                {post.thumbnail ? (
+                  <img
+                    src={getImageUrl(post.thumbnail)}
+                    alt={post.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="mi text-4xl text-gray-400">article</span>
+                )}
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                 {/* Category badge on image */}
                 <span className={`absolute top-4 left-4 text-[12px] font-bold px-3 py-1 rounded-full ${catStyle.bg} ${catStyle.text} border ${catStyle.border} backdrop-blur-sm`}>
-                  {post.category}
+                  {post.category_id?.name || 'Chung'}
                 </span>
               </div>
 
@@ -184,50 +145,31 @@ export default function BlogDetailPage() {
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pb-4 border-b border-border-light mb-5">
                   {/* Author */}
                   <div className="flex items-center gap-2">
-                    <img src={post.author.avatar} alt={post.author.name}
-                      className="w-9 h-9 rounded-full border-2 border-white shadow-sm object-cover" />
+                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-primary font-bold">A</div>
                     <div>
-                      <p className="text-[13px] font-semibold text-text-primary leading-none">{post.author.name}</p>
-                      <p className="text-[11px] text-text-muted mt-0.5">{post.author.role}</p>
+                      <p className="text-[13px] font-semibold text-text-primary leading-none">Admin</p>
+                      <p className="text-[11px] text-text-muted mt-0.5">Admin VinJobs</p>
                     </div>
                   </div>
                   {/* Divider */}
                   <span className="hidden sm:block w-px h-8 bg-border-main" />
                   {/* Date */}
                   <span className="flex items-center gap-1.5 text-[13px] text-text-muted">
-                    <span className="mi text-[16px]">calendar_today</span> {post.date}
+                    <span className="mi text-[16px]">calendar_today</span> {new Date(post.createdAt).toLocaleDateString('vi-VN')}
                   </span>
                   {/* Read time */}
                   <span className="flex items-center gap-1.5 text-[13px] text-text-muted">
-                    <span className="mi text-[16px]">schedule</span> {post.readTime}
+                    <span className="mi text-[16px]">schedule</span> 5 phút
                   </span>
                   {/* Views */}
                   <span className="flex items-center gap-1.5 text-[13px] text-text-muted">
-                    <span className="mi text-[16px]">visibility</span> {formatViews(post.views)} lượt xem
+                    <span className="mi text-[16px]">visibility</span> {formatViews(post.view_count || 0)} lượt xem
                   </span>
                 </div>
 
                 {/* Content body */}
-                <div className="space-y-4">
-                  {post.content.map((block, i) => (
-                    <ContentBlock key={i} block={block} />
-                  ))}
+                <div className="space-y-4 quill-content" dangerouslySetInnerHTML={{ __html: post.content }}>
                 </div>
-
-                {/* Tags */}
-                {post.tags && post.tags.length > 0 && (
-                  <div className="mt-7 pt-5 border-t border-border-light">
-                    <p className="text-[12px] font-semibold text-text-muted uppercase tracking-wider mb-2.5">Chủ đề</p>
-                    <div className="flex flex-wrap gap-2">
-                      {post.tags.map(tag => (
-                        <span key={tag}
-                          className="inline-flex items-center gap-1 text-[12px] font-medium text-text-secondary bg-bg border border-border-main px-3 py-1 rounded-full hover:border-primary hover:text-primary transition-all cursor-pointer">
-                          <span className="mi text-[13px]">tag</span>{tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* Action row */}
                 <div className="mt-6 pt-5 border-t border-border-light flex flex-wrap items-center justify-between gap-3">
@@ -274,12 +216,11 @@ export default function BlogDetailPage() {
 
             {/* Author card */}
             <div className="bg-white rounded-2xl border border-border-main p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <img src={post.author.avatar} alt={post.author.name}
-                className="w-16 h-16 rounded-full border-2 border-primary-100 object-cover shrink-0" />
+              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-primary text-2xl font-bold">A</div>
               <div className="flex-1">
                 <p className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-0.5">Tác giả</p>
-                <h3 className="text-base font-bold text-text-primary">{post.author.name}</h3>
-                <p className="text-[13px] text-primary font-medium">{post.author.role}</p>
+                <h3 className="text-base font-bold text-text-primary">Admin VinJobs</h3>
+                <p className="text-[13px] text-primary font-medium">Chuyên gia Nhân sự</p>
                 <p className="text-[13px] text-text-muted mt-1 leading-relaxed">
                   Chuyên gia tư vấn nghề nghiệp với hơn 8 năm kinh nghiệm trong lĩnh vực tuyển dụng và phát triển nhân lực tại Việt Nam.
                 </p>
@@ -314,25 +255,10 @@ export default function BlogDetailPage() {
                   style={{ width: `${readProgress}%` }}
                 />
               </div>
-              <p className="text-[12px] text-text-muted mt-1.5">{post.readTime} • {formatViews(post.views)} lượt xem</p>
+              <p className="text-[12px] text-text-muted mt-1.5">5 phút • {formatViews(post.view_count || 0)} lượt xem</p>
             </div>
 
-            {/* Table of Contents */}
-            {post.content && (
-              <div className="bg-white rounded-2xl border border-border-main p-4">
-                <h3 className="text-[14px] font-bold text-text-primary mb-3 flex items-center gap-1.5">
-                  <span className="mi text-[18px] text-primary">list</span>Mục lục
-                </h3>
-                <ol className="space-y-1.5">
-                  {post.content.filter(b => b.type === 'heading').map((b, i) => (
-                    <li key={i} className="flex items-start gap-2 text-[13px] text-text-secondary hover:text-primary transition-colors cursor-pointer leading-snug">
-                      <span className="text-[11px] font-bold text-primary mt-0.5 shrink-0 w-4">{i + 1}.</span>
-                      {b.text}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            )}
+
 
             {/* Quick actions */}
             <div className="bg-white rounded-2xl border border-border-main p-4">
@@ -389,20 +315,24 @@ export default function BlogDetailPage() {
 }
 
 function SidebarPostCard({ post }) {
-  const catStyle = categoryColors[post.category] || {};
+  const catStyle = categoryColors[post.category_id?.name] || {};
   return (
-    <Link to={`/blog/${post.id}`}
+    <Link to={`/blog/${post.slug}`}
       className="flex gap-3 group items-start hover:bg-bg rounded-xl p-1.5 -mx-1.5 transition-colors">
-      <div className="w-[72px] h-[52px] rounded-lg overflow-hidden shrink-0">
-        <img src={post.image} alt={post.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+      <div className="w-[72px] h-[52px] rounded-lg overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
+        {post.thumbnail ? (
+          <img src={getImageUrl(post.thumbnail)} alt={post.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        ) : (
+          <span className="mi text-gray-400">article</span>
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <h4 className="text-[13px] font-semibold text-text-primary leading-snug line-clamp-2 group-hover:text-primary transition-colors mb-1">
           {post.title}
         </h4>
         <span className={`text-[10px] font-semibold ${catStyle.text || 'text-text-muted'}`}>
-          {post.category}
+          {post.category_id?.name || 'Chung'}
         </span>
       </div>
     </Link>
@@ -412,21 +342,25 @@ function SidebarPostCard({ post }) {
 function RelatedPostCard({ post, catStyle }) {
   const cs = catStyle || {};
   return (
-    <Link to={`/blog/${post.id}`}
+    <Link to={`/blog/${post.slug}`}
       className="group flex flex-col bg-white border border-border-main rounded-xl overflow-hidden hover:shadow-card-hover transition-all">
-      <div className="h-[130px] overflow-hidden">
-        <img src={post.image} alt={post.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+      <div className="h-[130px] overflow-hidden bg-gray-100 flex items-center justify-center">
+        {post.thumbnail ? (
+          <img src={getImageUrl(post.thumbnail)} alt={post.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        ) : (
+          <span className="mi text-4xl text-gray-400">article</span>
+        )}
       </div>
       <div className="p-3">
         <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${cs.bg || 'bg-bg'} ${cs.text || 'text-text-muted'} inline-block mb-1.5`}>
-          {post.category}
+          {post.category_id?.name || 'Chung'}
         </span>
         <h4 className="text-[13px] font-semibold text-text-primary line-clamp-2 leading-snug group-hover:text-primary transition-colors">
           {post.title}
         </h4>
         <p className="text-[11px] text-text-muted mt-1.5 flex items-center gap-1">
-          <span className="mi text-[13px]">schedule</span>{post.readTime}
+          <span className="mi text-[13px]">schedule</span>5 phút
         </p>
       </div>
     </Link>

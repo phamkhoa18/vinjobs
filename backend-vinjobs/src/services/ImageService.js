@@ -24,14 +24,17 @@ class ImageService {
     let extension = 'webp';
     if (options.mimetype === 'image/svg+xml') extension = 'svg';
     else if (options.mimetype === 'application/pdf') extension = 'pdf';
+    else if (options.mimetype === 'application/msword') extension = 'doc';
+    else if (options.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') extension = 'docx';
 
-    const prefix = extension === 'pdf' ? 'doc' : 'img';
+    const isDoc = ['pdf', 'doc', 'docx'].includes(extension);
+    const prefix = isDoc ? 'doc' : 'img';
     const filename = `${prefix}-${uuidv4()}-${Date.now()}.${extension}`;
     const filepath = path.join(this.uploadDir, filename);
 
     try {
-      if (options.mimetype === 'image/svg+xml' || options.mimetype === 'application/pdf') {
-        // Đối với SVG và PDF, chúng ta không dùng Sharp
+      if (options.mimetype === 'image/svg+xml' || isDoc) {
+        // Đối với SVG và Document, chúng ta không dùng Sharp
         // Mà ghi trực tiếp ra đĩa
         fs.writeFileSync(filepath, buffer);
         return `/uploads/images/${filename}`;

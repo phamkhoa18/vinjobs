@@ -1,130 +1,153 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { mockJobs, formatSalary } from '../../data/mockData';
+import { savedJobsApi } from '../../lib/api';
+import { toast } from 'react-hot-toast';
+import { Card, Typography, Input, Row, Col, Space, Button, Spin, Tag, Avatar, Empty } from 'antd';
+import { 
+  HeartFilled, 
+  EnvironmentOutlined,
+  SearchOutlined
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/vi';
 
-const savedJobsData = mockJobs.slice(0, 8).map((job, i) => ({
-  ...job,
-  savedAt: `${10 - i}/06/2026`,
-  note: i === 0 ? 'Vị trí phù hợp, cần xem lại yêu cầu kỹ năng' : '',
-}));
+dayjs.extend(relativeTime);
+dayjs.locale('vi');
+
+const { Title, Text } = Typography;
 
 export default function SavedJobsPage() {
-  const [jobs, setJobs] = useState(savedJobsData);
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [notes, setNotes] = useState({});
-  const [editNote, setEditNote] = useState(null);
+  const navigate = useNavigate();
 
-  const filtered = jobs.filter(j => !search || j.title.toLowerCase().includes(search.toLowerCase()) || j.company.name.toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => {
+    fetchSavedJobs();
+  }, []);
 
-  const removeJob = (id) => setJobs(jobs.filter(j => j.id !== id));
+  const fetchSavedJobs = async () => {
+    try {
+      setLoading(true);
+      const res = await savedJobsApi.getMySavedJobs();
+      if (res.status === 'success') {
+        setJobs(res.data.jobs || []);
+      }
+    } catch (err) {
+      toast.error('Lỗi khi tải danh sách việc làm đã lưu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filtered = jobs.filter(j => {
+    if (!j) return false;
+    const s = search.toLowerCase();
+    const titleMatch = j.title?.toLowerCase().includes(s);
+    const companyMatch = j.company_id?.name?.toLowerCase().includes(s);
+    return !search || titleMatch || companyMatch;
+  });
+
+  const removeJob = async (e, id) => {
+    e.stopPropagation(); // Prevent card click
+    try {
+      await savedJobsApi.toggle(id);
+      toast.success('Đã bỏ lưu');
+      setJobs(jobs.filter(j => j._id !== id));
+    } catch (error) {
+      toast.error('Lỗi khi bỏ lưu');
+    }
+  };
+
+  const formatSalary = (min, max) => {
+    if (!min && !max) return 'Thoả thuận';
+    if (!max) return `Từ ${min / 1000000} Tr`;
+    if (!min) return `Đến ${max / 1000000} Tr`;
+    return `${min / 1000000} - ${max / 1000000} Tr`;
+  };
 
   return (
     <DashboardLayout role="candidate">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 className="text-[22px] font-bold text-[#111827]">Việc làm đã lưu</h1>
-          <p className="text-[13px] text-[#6b7280] mt-0.5">{jobs.length} việc làm đang theo dõi</p>
+          <Title level={4} style={{ margin: 0 }}>Việc làm đã lưu</Title>
+          <Text type="secondary">{jobs.length} việc làm đang theo dõi</Text>
         </div>
-      </div>
-
-      {/* Search */}
-      <div className="flex items-center gap-2 bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 mb-5">
-        <span className="mi text-[20px] text-[#9ca3af]">search</span>
-        <input type="text" placeholder="Tìm trong danh sách đã lưu..." value={search}
+        <Input
+          placeholder="Tìm trong danh sách đã lưu..."
+          prefix={<SearchOutlined className="text-gray-400" />}
+          value={search}
           onChange={e => setSearch(e.target.value)}
-          className="flex-1 text-[14px] text-[#111827] placeholder:text-[#9ca3af] bg-transparent border-none outline-none" />
+          style={{ width: 300, borderRadius: 8 }}
+          size="large"
+        />
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-[#e5e7eb] p-12 text-center">
-          <span className="mi text-[56px] text-[#d1d5db] block mb-3">favorite_border</span>
-          <p className="text-[16px] font-semibold text-[#374151] mb-1">Chưa có việc làm nào được lưu</p>
-          <p className="text-[13px] text-[#9ca3af] mb-4">Khám phá và lưu những vị trí phù hợp với bạn</p>
-          <Link to="/jobs" className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-white rounded-xl text-[13px] font-bold hover:bg-blue-700 transition-all">
-            <span className="mi text-[16px]">search</span>Tìm việc ngay
-          </Link>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map(job => (
-            <div key={job.id} className="bg-white rounded-xl border border-[#e5e7eb] p-4 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all group">
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-12 h-12 rounded-xl border border-[#e5e7eb] bg-white flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
-                  <img src={job.company.logo} alt="" className="w-full h-full object-contain"
-                    onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company.name)}&background=random&size=80`; }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <Link to={`/jobs/${job.id}`}
-                    className="text-[14px] font-bold text-[#111827] hover:text-primary transition-colors line-clamp-1 block">
-                    {job.title}
-                  </Link>
-                  <p className="text-[12px] text-[#6b7280]">{job.company.name}</p>
-                </div>
-                <button onClick={() => removeJob(job.id)}
-                  className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100">
-                  <span className="mi text-[18px]">favorite</span>
-                </button>
-              </div>
+      <Spin spinning={loading} size="large">
+        {filtered.length === 0 && !loading ? (
+          <Card bordered={false} className="shadow-sm p-10 text-center">
+            <Empty 
+              image={Empty.PRESENTED_IMAGE_SIMPLE} 
+              description={<Text type="secondary">Chưa có việc làm nào được lưu</Text>} 
+            >
+              <Button type="primary" onClick={() => navigate('/jobs')} className="mt-4">
+                Khám phá Việc làm
+              </Button>
+            </Empty>
+          </Card>
+        ) : (
+          <Row gutter={[16, 16]}>
+            {filtered.map(job => (
+              <Col xs={24} md={12} key={job._id}>
+                <Card 
+                  bordered={false} 
+                  hoverable 
+                  className="shadow-sm h-full"
+                  bodyStyle={{ padding: '20px' }}
+                  onClick={() => navigate(`/jobs/${job._id}`)}
+                >
+                  <div className="flex items-start gap-4">
+                    <Avatar 
+                      shape="square" 
+                      size={64} 
+                      src={job.company_id?.logo || '/default-company-logo.png'} 
+                      className="border border-gray-100 flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start gap-2">
+                        <Title level={5} className="truncate m-0 text-gray-900 hover:text-blue-600 transition-colors">
+                          {job.title}
+                        </Title>
+                        <Button 
+                          type="text" 
+                          icon={<HeartFilled className="text-red-500 text-lg" />} 
+                          onClick={(e) => removeJob(e, job._id)}
+                          className="hover:bg-red-50"
+                        />
+                      </div>
+                      
+                      <Text type="secondary" className="block truncate mt-1">
+                        {job.company_id?.name}
+                      </Text>
 
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="text-[13px] font-bold text-red-500">{formatSalary(job.salary)}</span>
-                <span className="w-1 h-1 bg-[#d1d5db] rounded-full" />
-                <span className="flex items-center gap-0.5 text-[12px] text-[#6b7280]">
-                  <span className="mi text-[14px]">location_on</span>{job.location}
-                </span>
-              </div>
-
-              {/* Note */}
-              {(notes[job.id] || job.note) && editNote !== job.id && (
-                <div className="flex items-start gap-2 mb-3 p-2.5 bg-[#fffbeb] rounded-lg border border-amber-200">
-                  <span className="mi text-[15px] text-amber-500 shrink-0 mt-0.5">sticky_note_2</span>
-                  <p className="text-[12px] text-amber-700 flex-1">{notes[job.id] || job.note}</p>
-                  <button onClick={() => setEditNote(job.id)} className="shrink-0 text-amber-500 hover:text-amber-700">
-                    <span className="mi text-[14px]">edit</span>
-                  </button>
-                </div>
-              )}
-              {editNote === job.id && (
-                <div className="mb-3">
-                  <textarea rows={2} defaultValue={notes[job.id] || job.note}
-                    id={`note-${job.id}`}
-                    placeholder="Thêm ghi chú..."
-                    className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-[13px] text-[#374151] focus:outline-none focus:border-primary resize-none" />
-                  <div className="flex gap-2 mt-1.5">
-                    <button onClick={() => {
-                      const el = document.getElementById(`note-${job.id}`);
-                      setNotes({ ...notes, [job.id]: el.value });
-                      setEditNote(null);
-                    }} className="px-3 py-1 bg-primary text-white text-[12px] font-semibold rounded-lg hover:bg-blue-700 transition-all">
-                      Lưu
-                    </button>
-                    <button onClick={() => setEditNote(null)} className="px-3 py-1 border border-[#e5e7eb] text-[12px] text-[#374151] rounded-lg hover:border-primary transition-all">
-                      Huỷ
-                    </button>
+                      <Space className="mt-3 flex-wrap" size={[8, 8]}>
+                        <Tag color="red" className="font-semibold rounded border-0 bg-red-50 text-red-600 m-0">
+                          {formatSalary(job.salary_min, job.salary_max)}
+                        </Tag>
+                        <Tag icon={<EnvironmentOutlined />} className="rounded border-0 bg-gray-100 text-gray-600 m-0">
+                          {job.company_id?.province || job.location?.province || 'Chưa rõ'}
+                        </Tag>
+                      </Space>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-3 border-t border-[#f3f4f6]">
-                <span className="text-[11px] text-[#9ca3af]">Lưu {job.savedAt}</span>
-                <div className="flex gap-2">
-                  {!notes[job.id] && !job.note && editNote !== job.id && (
-                    <button onClick={() => setEditNote(job.id)}
-                      className="flex items-center gap-1 px-2.5 py-1 text-[12px] text-[#6b7280] border border-[#e5e7eb] rounded-lg hover:border-amber-300 hover:text-amber-600 transition-all">
-                      <span className="mi text-[14px]">sticky_note_2</span>Ghi chú
-                    </button>
-                  )}
-                  <Link to={`/jobs/${job.id}`}
-                    className="flex items-center gap-1 px-3 py-1 bg-primary text-white text-[12px] font-semibold rounded-lg hover:bg-blue-700 transition-all">
-                    Ứng tuyển
-                  </Link>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        )}
+      </Spin>
     </DashboardLayout>
   );
 }

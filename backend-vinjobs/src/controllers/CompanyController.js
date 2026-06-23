@@ -26,6 +26,12 @@ class CompanyController {
     const { company, activeJobs } = await companyService.getCompanyById(req.params.id);
     res.status(200).json({ status: 'success', data: { company, activeJobs } });
   });
+
+  getTopCompanies = asyncHandler(async (req, res) => {
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const companies = await companyService.getTopCompanies(limit);
+    res.status(200).json({ status: 'success', results: companies.length, data: { companies } });
+  });
 }
 
 export default new CompanyController();

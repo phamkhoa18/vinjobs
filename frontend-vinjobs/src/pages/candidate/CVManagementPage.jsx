@@ -1,141 +1,222 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import api, { cvApi } from '../../lib/api';
+import { toast } from 'react-hot-toast';
+import { Card, Typography, Upload, List, Button, Tag, Space, Alert, Popconfirm, Spin, Row, Col } from 'antd';
+import { 
+  InboxOutlined, 
+  FilePdfOutlined, 
+  DeleteOutlined, 
+  DownloadOutlined,
+  CheckCircleOutlined
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
 
-const MOCK_CVS = [
-  { id: 1, name: 'CV_NguyenVanA_Frontend_2026.pdf', size: '2.4 MB', uploadedAt: '10/06/2026', isDefault: true, views: 24, downloads: 8 },
-  { id: 2, name: 'CV_NguyenVanA_Full.pdf', size: '1.8 MB', uploadedAt: '05/05/2026', isDefault: false, views: 11, downloads: 3 },
-];
+const { Title, Text } = Typography;
+const { Dragger } = Upload;
 
 export default function CVManagementPage() {
-  const [cvs, setCvs] = useState(MOCK_CVS);
-  const [dragging, setDragging] = useState(false);
-  const fileRef = useRef();
+  const [cvs, setCvs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
-  const setDefault = (id) => setCvs(cvs.map(c => ({ ...c, isDefault: c.id === id })));
-  const deleteCV = (id) => setCvs(cvs.filter(c => c.id !== id));
+  useEffect(() => {
+    fetchCVs();
+  }, []);
 
-  const handleDrop = (e) => {
-    e.preventDefault(); setDragging(false);
-    // In real app: handle upload
-    const file = e.dataTransfer.files[0];
-    if (file && file.type === 'application/pdf') {
-      setCvs([...cvs, { id: Date.now(), name: file.name, size: `${(file.size / 1048576).toFixed(1)} MB`, uploadedAt: new Date().toLocaleDateString('vi-VN'), isDefault: false, views: 0, downloads: 0 }]);
+  const fetchCVs = async () => {
+    try {
+      setLoading(true);
+      const res = await cvApi.getMyCVs();
+      if (res.status === 'success') {
+        setCvs(res.data.cvs);
+      }
+    } catch (error) {
+      toast.error('Lỗi khi tải danh sách CV');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setDefault = async (id) => {
+    try {
+      const res = await cvApi.setDefault(id);
+      if (res.status === 'success') {
+        toast.success('Đã đặt CV mặc định');
+        fetchCVs();
+      }
+    } catch (error) {
+      toast.error('Không thể đặt mặc định');
+    }
+  };
+
+  const deleteCV = async (id) => {
+    try {
+      await cvApi.deleteCV(id);
+      toast.success('Xóa CV thành công');
+      fetchCVs();
+    } catch (error) {
+      toast.error('Không thể xóa CV');
+    }
+  };
+
+  const uploadProps = {
+    name: 'document',
+    multiple: false,
+    showUploadList: false,
+    customRequest: async (options) => {
+      const { file, onSuccess, onError } = options;
+      
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File không được vượt quá 5MB');
+        onError(new Error('File quá lớn'));
+        return;
+      }
+      
+      setUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append('document', file);
+        
+        const uploadRes = await api.post('/upload/document', formData);
+        
+        if (uploadRes.status === 'success') {
+          const filePath = uploadRes.data.url;
+          
+          const saveRes = await cvApi.uploadCV({
+            title: file.name,
+            file_path: filePath,
+            file_type: file.name.split('.').pop().toUpperCase()
+          });
+          
+          if (saveRes.status === 'success') {
+            toast.success('Upload CV thành công');
+            fetchCVs();
+            onSuccess(saveRes.data, file);
+          }
+        }
+      } catch (error) {
+        toast.error('Lỗi khi upload CV');
+        onError(error);
+      } finally {
+        setUploading(false);
+      }
+    },
+    beforeUpload: (file) => {
+      const isPdfOrWord = file.type === 'application/pdf' || file.type === 'application/msword' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      if (!isPdfOrWord) {
+        toast.error('Chỉ hỗ trợ file PDF, DOC, DOCX');
+      }
+      return isPdfOrWord || Upload.LIST_IGNORE;
     }
   };
 
   return (
     <DashboardLayout role="candidate">
-      <div className="mb-6">
-        <h1 className="text-[22px] font-bold text-[#111827]">Quản lý CV</h1>
-        <p className="text-[13px] text-[#6b7280] mt-0.5">Upload và quản lý các phiên bản CV của bạn</p>
+      <div style={{ marginBottom: '24px' }}>
+        <Title level={4} style={{ margin: 0 }}>Quản lý CV</Title>
+        <Text type="secondary">Upload và quản lý các phiên bản CV của bạn</Text>
       </div>
 
-      {/* Tips */}
-      <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
-        <span className="mi text-[20px] text-blue-500 shrink-0 mt-0.5">lightbulb</span>
-        <div>
-          <p className="text-[13px] font-semibold text-blue-700 mb-1">Mẹo tạo CV ấn tượng</p>
-          <p className="text-[12px] text-blue-600">CV PDF chuyên nghiệp, tối đa 2 trang, thể hiện thành tích cụ thể với số liệu rõ ràng. Tùy chỉnh CV cho từng vị trí ứng tuyển sẽ tăng 40% cơ hội được chọn.</p>
-        </div>
-      </div>
+      <Alert
+        message="Mẹo tạo CV ấn tượng"
+        description="CV PDF chuyên nghiệp, tối đa 2 trang, thể hiện thành tích cụ thể với số liệu rõ ràng. Tùy chỉnh CV cho từng vị trí ứng tuyển sẽ tăng 40% cơ hội được chọn."
+        type="info"
+        showIcon
+        className="shadow-sm border-0"
+        style={{ marginBottom: '24px' }}
+      />
 
-      {/* Upload zone */}
-      <div
-        className={`border-2 border-dashed rounded-2xl p-10 text-center mb-6 transition-all cursor-pointer ${dragging ? 'border-primary bg-blue-50' : 'border-[#d1d5db] hover:border-primary hover:bg-[#fafafa]'}`}
-        onDragOver={e => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-        onClick={() => fileRef.current.click()}>
-        <input ref={fileRef} type="file" accept=".pdf,.doc,.docx" className="hidden"
-          onChange={e => {
-            const file = e.target.files[0];
-            if (file) setCvs([...cvs, { id: Date.now(), name: file.name, size: `${(file.size / 1048576).toFixed(1)} MB`, uploadedAt: new Date().toLocaleDateString('vi-VN'), isDefault: false, views: 0, downloads: 0 }]);
-          }} />
-        <span className={`mi text-[48px] block mb-3 ${dragging ? 'text-primary' : 'text-[#9ca3af]'}`}>upload_file</span>
-        <p className="text-[15px] font-semibold text-[#374151] mb-1">{dragging ? 'Thả file vào đây!' : 'Kéo thả CV vào đây'}</p>
-        <p className="text-[13px] text-[#9ca3af]">Hoặc <span className="text-primary font-semibold underline">chọn file</span> từ máy tính</p>
-        <p className="text-[12px] text-[#9ca3af] mt-1.5">Hỗ trợ PDF, DOC, DOCX · Tối đa 5MB</p>
-      </div>
+      <Card bordered={false} className="shadow-sm" style={{ marginBottom: '24px' }}>
+        <Spin spinning={uploading} tip="Đang tải lên...">
+          <Dragger {...uploadProps}>
+            <p className="ant-upload-drag-icon">
+              <InboxOutlined style={{ color: '#1677ff' }} />
+            </p>
+            <p className="ant-upload-text">Nhấp hoặc kéo thả file vào khu vực này để upload</p>
+            <p className="ant-upload-hint">
+              Hỗ trợ tải lên file PDF, DOC, DOCX. Dung lượng tối đa 5MB.
+            </p>
+          </Dragger>
+        </Spin>
+      </Card>
 
-      {/* CV List */}
-      <h2 className="text-[16px] font-bold text-[#111827] mb-3">CV đã tải lên ({cvs.length}/3)</h2>
-      <div className="space-y-3">
-        {cvs.map(cv => (
-          <div key={cv.id} className="bg-white rounded-xl border border-[#e5e7eb] p-5 flex items-center gap-4 hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] transition-all">
-            {/* Icon */}
-            <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center shrink-0">
-              <span className="mi text-[26px] text-red-500">picture_as_pdf</span>
-            </div>
+      <Card 
+        title={`CV đã tải lên (${cvs.length}/5)`} 
+        bordered={false} 
+        className="shadow-sm"
+        style={{ marginBottom: '24px' }}
+      >
+        <Spin spinning={loading}>
+          <List
+            itemLayout="horizontal"
+            dataSource={cvs}
+            locale={{ emptyText: 'Chưa có CV nào được tải lên.' }}
+            renderItem={(cv) => (
+              <List.Item
+                className="hover:bg-gray-50 px-4 transition-colors"
+                actions={[
+                  !cv.is_primary && (
+                    <Button type="default" size="small" onClick={() => setDefault(cv._id)}>
+                      Đặt mặc định
+                    </Button>
+                  ),
+                  <Button 
+                    type="primary" 
+                    ghost 
+                    size="small" 
+                    icon={<DownloadOutlined />} 
+                    href={cv.file_path} 
+                    target="_blank"
+                  >
+                    Tải xuống
+                  </Button>,
+                  <Popconfirm title="Bạn có chắc muốn xóa CV này?" onConfirm={() => deleteCV(cv._id)}>
+                    <Button danger size="small" icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                ]}
+              >
+                <List.Item.Meta
+                  avatar={<FilePdfOutlined style={{ fontSize: '32px', color: '#ff4d4f' }} />}
+                  title={
+                    <Space>
+                      <Text strong>{cv.title}</Text>
+                      {cv.is_primary && <Tag color="green" icon={<CheckCircleOutlined />}>MẶC ĐỊNH</Tag>}
+                    </Space>
+                  }
+                  description={
+                    <Space split={<Text type="secondary">•</Text>}>
+                      <Text type="secondary">{cv.file_type}</Text>
+                      <Text type="secondary">Upload {dayjs(cv.uploaded_at).format('DD/MM/YYYY')}</Text>
+                    </Space>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        </Spin>
+      </Card>
 
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-[14px] font-bold text-[#111827] truncate">{cv.name}</p>
-                {cv.isDefault && (
-                  <span className="shrink-0 text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">MẶC ĐỊNH</span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[12px] text-[#9ca3af]">{cv.size}</span>
-                <span className="text-[12px] text-[#9ca3af]">·</span>
-                <span className="text-[12px] text-[#9ca3af]">Upload {cv.uploadedAt}</span>
-                <span className="text-[12px] text-[#9ca3af]">·</span>
-                <span className="flex items-center gap-0.5 text-[12px] text-[#6b7280]">
-                  <span className="mi text-[13px]">visibility</span>{cv.views} lượt xem
-                </span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2 shrink-0">
-              {!cv.isDefault && (
-                <button onClick={() => setDefault(cv.id)}
-                  className="px-3 py-1.5 border border-[#e5e7eb] text-[12px] font-medium text-[#374151] rounded-lg hover:border-primary hover:text-primary transition-all">
-                  Đặt mặc định
-                </button>
-              )}
-              <a href="#" className="flex items-center gap-1 px-3 py-1.5 border border-[#e5e7eb] text-[12px] font-medium text-[#374151] rounded-lg hover:border-primary hover:text-primary transition-all">
-                <span className="mi text-[15px]">download</span>Tải xuống
-              </a>
-              <button onClick={() => deleteCV(cv.id)}
-                className="w-8 h-8 flex items-center justify-center border border-[#e5e7eb] rounded-lg text-[#9ca3af] hover:border-red-300 hover:text-red-500 transition-all">
-                <span className="mi text-[16px]">delete</span>
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {cvs.length === 0 && (
-          <div className="bg-white rounded-xl border border-[#e5e7eb] p-10 text-center">
-            <span className="mi text-[48px] text-[#d1d5db] block mb-3">description</span>
-            <p className="text-[15px] text-[#6b7280]">Chưa có CV nào. Hãy upload CV đầu tiên của bạn!</p>
-          </div>
-        )}
-      </div>
-
-      {/* Create CV tips */}
-      <div className="mt-6 bg-white rounded-xl border border-[#e5e7eb] p-5">
-        <h3 className="text-[15px] font-bold text-[#111827] mb-3">Tạo CV online miễn phí</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <Card title="Tạo CV online miễn phí" bordered={false} className="shadow-sm">
+        <Row gutter={[16, 16]}>
           {[
-            { name: 'Canva', icon: 'palette', desc: 'Template đẹp, dễ dùng', url: 'https://canva.com', color: '#7c3aed' },
-            { name: 'Resume.io', icon: 'description', desc: 'CV chuyên nghiệp ATS', url: 'https://resume.io', color: '#3674c5' },
-            { name: 'Zety', icon: 'auto_fix_high', desc: 'AI gợi ý nội dung', url: 'https://zety.com', color: '#059669' },
-          ].map(tool => (
-            <a key={tool.name} href={tool.url} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-3 p-3 border border-[#e5e7eb] rounded-xl hover:border-primary hover:bg-[#fafafa] transition-all group">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${tool.color}18` }}>
-                <span className="mi text-[20px]" style={{ color: tool.color }}>{tool.icon}</span>
-              </div>
-              <div>
-                <p className="text-[13px] font-semibold text-[#111827] group-hover:text-primary transition-colors">{tool.name}</p>
-                <p className="text-[11px] text-[#9ca3af]">{tool.desc}</p>
-              </div>
-              <span className="mi text-[16px] text-[#9ca3af] ml-auto group-hover:text-primary">open_in_new</span>
-            </a>
+            { name: 'Canva', desc: 'Template đẹp, dễ dùng', url: 'https://canva.com', color: '#7c3aed' },
+            { name: 'Resume.io', desc: 'CV chuyên nghiệp chuẩn ATS', url: 'https://resume.io', color: '#3674c5' },
+            { name: 'Zety', desc: 'AI gợi ý nội dung', url: 'https://zety.com', color: '#059669' },
+          ].map((tool, i) => (
+            <Col xs={24} sm={8} key={i}>
+              <Card 
+                type="inner" 
+                hoverable 
+                onClick={() => window.open(tool.url, '_blank')}
+              >
+                <Title level={5} style={{ color: tool.color, margin: 0 }}>{tool.name}</Title>
+                <Text type="secondary" className="text-xs">{tool.desc}</Text>
+              </Card>
+            </Col>
           ))}
-        </div>
-      </div>
+        </Row>
+      </Card>
     </DashboardLayout>
   );
 }

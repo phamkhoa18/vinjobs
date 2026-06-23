@@ -11,4 +11,9 @@ router.route('/')
   .get(cvController.getMyCVs)
   .post(cvController.uploadCV);
 
+router.route('/:id')
+  .delete(cvController.deleteCV);
+
+router.patch('/:id/default', cvController.setDefaultCV);
+
 export default router;

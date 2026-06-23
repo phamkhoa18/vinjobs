@@ -1,6 +1,7 @@
 import Company from '../models/Company.js';
 import Job from '../models/Job.js';
 import AppError from '../utils/AppError.js';
+import mongoose from 'mongoose';
 
 class CompanyService {
   async createCompany(employerId, data) {
@@ -76,16 +77,42 @@ class CompanyService {
   }
 
   async getCompanyById(companyId) {
-    const company = await Company.findById(companyId);
+    const isValidId = mongoose.Types.ObjectId.isValid(companyId);
+    const query = isValidId ? { $or: [{ _id: companyId }, { slug: companyId }] } : { slug: companyId };
+    
+    const company = await Company.findOne(query);
     if (!company) throw new AppError('Công ty không tồn tại', 404);
 
     // Lấy thêm danh sách việc làm đang mở của công ty
     const activeJobs = await Job.find({ 
-      company_id: companyId, 
+      company_id: company._id, 
       status: 'APPROVED' 
     }).sort('-createdAt').limit(10);
 
     return { company, activeJobs };
+  }
+  async getTopCompanies(limit = 10) {
+    // Tìm các công ty ACTIVE
+    const companies = await Company.find({ status: 'ACTIVE' });
+    
+    // Đếm số job APPROVED cho từng company
+    const jobCounts = await Job.aggregate([
+      { $match: { status: 'APPROVED' } },
+      { $group: { _id: '$company_id', count: { $sum: 1 } } }
+    ]);
+
+    const countMap = {};
+    jobCounts.forEach(c => {
+      if (c._id) countMap[c._id.toString()] = c.count;
+    });
+
+    const result = companies.map(comp => {
+      const companyObj = comp.toObject();
+      companyObj.jobs = countMap[comp._id.toString()] || 0;
+      return companyObj;
+    }).sort((a, b) => b.jobs - a.jobs).slice(0, limit);
+
+    return result;
   }
 }
 

@@ -16,6 +16,12 @@ class RecruitmentFacade {
    */
   async postJob(employerId, companyId, jobData) {
     const job = await jobService.createJob(employerId, companyId, jobData);
+    
+    // Notify admins
+    const company = await (await import('../models/Company.js')).default.findById(companyId);
+    const NotificationFacade = (await import('../patterns/facade/NotificationFacade.js')).default;
+    await NotificationFacade.sendNewJobNotification(job, company);
+    
     return job;
   }
 

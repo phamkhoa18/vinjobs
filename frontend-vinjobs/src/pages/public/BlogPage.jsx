@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { mockPosts } from '../../data/mockData';
+import { blogApi, getImageUrl } from '../../lib/api';
 
 const TABS = ['Tất cả', 'Tin nổi bật', 'Cẩm nang tìm việc', 'Cẩm nang ngành nghề'];
 
@@ -9,15 +9,25 @@ const POPULAR_TAGS = ['Kỹ năng mềm', 'CV', 'Phỏng vấn', 'Lương', 'IT'
 export default function BlogPage() {
   const [activeTab, setActiveTab] = useState('Tất cả');
   const [search, setSearch] = useState('');
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const filtered = mockPosts.filter(p => {
-    const matchTab = activeTab === 'Tất cả' || p.category === activeTab;
+  useEffect(() => {
+    setLoading(true);
+    blogApi.getPosts({ limit: 100 })
+      .then(res => setPosts(res.data?.posts || []))
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = posts.filter(p => {
+    const matchTab = activeTab === 'Tất cả' || p.category_id?.name === activeTab;
     const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
 
-  const featured = mockPosts[0];
-  const rest = filtered.slice(featured ? 1 : 0);
+  const featured = posts.length > 0 ? posts[0] : null;
+  const rest = filtered.slice(featured && (activeTab === 'Tất cả' && !search) ? 1 : 0);
 
   return (
     <div className="pt-header-height pb-12 bg-[#f3f4f6] min-h-screen">
@@ -55,28 +65,34 @@ export default function BlogPage() {
           <div>
             {/* Featured article */}
             {activeTab === 'Tất cả' && !search && featured && (
-              <Link to={`/blog/${featured.id}`}
+              <Link to={`/blog/${featured.slug}`}
                 className="group block bg-white rounded-xl border border-[#e5e7eb] overflow-hidden hover:shadow-[0_4px_20px_rgba(0,0,0,0.1)] transition-all mb-5">
                 <div className="md:flex">
-                  <div className="md:w-[380px] h-[220px] md:h-auto overflow-hidden shrink-0">
-                    <img src={featured.image} alt={featured.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="md:w-[380px] h-[220px] md:h-auto overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
+                    {featured.thumbnail ? (
+                      <img src={getImageUrl(featured.thumbnail)} alt={featured.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <span className="mi text-4xl text-gray-400">article</span>
+                    )}
                   </div>
                   <div className="p-6 flex flex-col justify-between">
                     <div>
                       <span className="inline-block text-[11px] font-bold text-primary bg-blue-50 px-2.5 py-1 rounded-full uppercase tracking-wide mb-3">
-                        ⭐ Nổi bật · {featured.category}
+                        ⭐ Nổi bật · {featured.category_id?.name || 'Chung'}
                       </span>
                       <h2 className="text-[20px] font-bold text-[#111827] leading-snug mb-2 group-hover:text-primary transition-colors line-clamp-2">{featured.title}</h2>
-                      <p className="text-[14px] text-[#6b7280] leading-relaxed line-clamp-3">{featured.excerpt}</p>
+                      <p className="text-[14px] text-[#6b7280] leading-relaxed line-clamp-3" dangerouslySetInnerHTML={{ __html: featured.content?.substring(0, 150) + '...' }}></p>
                     </div>
                     <div className="flex items-center gap-3 mt-4 pt-4 border-t border-[#f3f4f6]">
-                      <img src={featured.author.avatar} alt="" className="w-8 h-8 rounded-full" />
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                        <span className="mi text-gray-500">person</span>
+                      </div>
                       <div>
-                        <p className="text-[12px] font-semibold text-[#111827]">{featured.author.name}</p>
-                        <p className="text-[11px] text-[#9ca3af]">{featured.date} · {featured.readTime}</p>
+                        <p className="text-[12px] font-semibold text-[#111827]">Admin</p>
+                        <p className="text-[11px] text-[#9ca3af]">{new Date(featured.createdAt).toLocaleDateString('vi-VN')} · 5 phút đọc</p>
                       </div>
                       <span className="ml-auto flex items-center gap-1 text-[12px] text-[#6b7280]">
-                        <span className="mi text-[14px]">visibility</span>{featured.views.toLocaleString()}
+                        <span className="mi text-[14px]">visibility</span>{featured.view_count?.toLocaleString() || 0}
                       </span>
                     </div>
                   </div>
@@ -92,21 +108,26 @@ export default function BlogPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {(activeTab === 'Tất cả' && !search ? rest : filtered).map(post => (
-                  <Link to={`/blog/${post.id}`} key={post.id}
-                    className="group bg-white border border-[#e5e7eb] rounded-xl overflow-hidden hover:shadow-[0_4px_20px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all">
-                    <div className="h-[180px] overflow-hidden">
-                      <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                {rest.map(post => (
+                  <Link to={`/blog/${post.slug}`} key={post._id}
+                    className="group bg-white border border-[#e5e7eb] rounded-xl overflow-hidden hover:shadow-[0_4px_20px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all flex flex-col">
+                    <div className="h-[180px] overflow-hidden bg-gray-100 flex items-center justify-center">
+                      {post.thumbnail ? (
+                        <img src={getImageUrl(post.thumbnail)} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <span className="mi text-4xl text-gray-400">article</span>
+                      )}
                     </div>
-                    <div className="p-4">
-                      <span className="inline-block text-[11px] font-semibold text-primary bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wide mb-2">{post.category}</span>
+                    <div className="p-4 flex-1 flex flex-col">
+                      <span className="inline-block self-start text-[11px] font-semibold text-primary bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wide mb-2">{post.category_id?.name || 'Chung'}</span>
                       <h3 className="text-[14px] font-bold text-[#111827] leading-snug mb-2 line-clamp-2 group-hover:text-primary transition-colors">{post.title}</h3>
-                      <p className="text-[12px] text-[#6b7280] leading-relaxed mb-3 line-clamp-2">{post.excerpt}</p>
-                      <div className="flex items-center gap-2 pt-3 border-t border-[#f3f4f6]">
-                        <img src={post.author.avatar} alt="" className="w-6 h-6 rounded-full" />
-                        <span className="text-[11px] text-[#6b7280] flex-1 truncate">{post.author.name} · {post.date}</span>
+                      <div className="flex items-center gap-2 pt-3 border-t border-[#f3f4f6] mt-auto">
+                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                          <span className="mi text-[12px] text-gray-500">person</span>
+                        </div>
+                        <span className="text-[11px] text-[#6b7280] flex-1 truncate">Admin · {new Date(post.createdAt).toLocaleDateString('vi-VN')}</span>
                         <span className="flex items-center gap-0.5 text-[11px] text-[#9ca3af]">
-                          <span className="mi text-[13px]">schedule</span>{post.readTime}
+                          <span className="mi text-[13px]">schedule</span>5 phút
                         </span>
                       </div>
                     </div>
@@ -135,14 +156,14 @@ export default function BlogPage() {
             <div className="bg-white rounded-xl border border-[#e5e7eb] p-5">
               <h3 className="text-[15px] font-bold text-[#111827] mb-3">Bài viết nhiều lượt xem</h3>
               <div className="space-y-3">
-                {[...mockPosts].sort((a, b) => b.views - a.views).slice(0, 4).map((post, i) => (
-                  <Link to={`/blog/${post.id}`} key={post.id}
+                {[...posts].sort((a, b) => (b.view_count || 0) - (a.view_count || 0)).slice(0, 4).map((post, i) => (
+                  <Link to={`/blog/${post.slug}`} key={post._id}
                     className="flex gap-3 group">
                     <span className="text-[20px] font-black text-[#e5e7eb] shrink-0 w-6 leading-tight">{i + 1}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-semibold text-[#111827] line-clamp-2 group-hover:text-primary transition-colors leading-snug">{post.title}</p>
                       <span className="flex items-center gap-1 text-[11px] text-[#9ca3af] mt-1">
-                        <span className="mi text-[12px]">visibility</span>{post.views.toLocaleString()}
+                        <span className="mi text-[12px]">visibility</span>{post.view_count?.toLocaleString() || 0}
                       </span>
                     </div>
                   </Link>
@@ -154,15 +175,13 @@ export default function BlogPage() {
             <div className="bg-white rounded-xl border border-[#e5e7eb] p-5">
               <h3 className="text-[15px] font-bold text-[#111827] mb-3">Tác giả nổi bật</h3>
               <div className="space-y-3">
-                {mockPosts.filter((p, i, arr) => arr.findIndex(x => x.author.name === p.author.name) === i).map((post, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <img src={post.author.avatar} alt="" className="w-9 h-9 rounded-full" />
-                    <div>
-                      <p className="text-[13px] font-semibold text-[#111827]">{post.author.name}</p>
-                      <p className="text-[11px] text-[#9ca3af]">{post.author.role}</p>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-primary font-bold">A</div>
+                  <div>
+                    <p className="text-[13px] font-semibold text-[#111827]">Admin VinJobs</p>
+                    <p className="text-[11px] text-[#9ca3af]">Chuyên gia Nhân sự</p>
                   </div>
-                ))}
+                </div>
               </div>
             </div>
           </div>

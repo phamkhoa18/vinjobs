@@ -21,6 +21,7 @@ import userRoutes from './src/routes/userRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
 import uploadRoutes from './src/routes/uploadRoutes.js';
 import settingRoutes from './src/routes/settingRoutes.js';
+import savedJobRoutes from './src/routes/savedJobRoutes.js';
 
 const app = express();
 
@@ -35,7 +36,7 @@ app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
 }));
 
 // Development logging
@@ -82,6 +83,7 @@ app.use('/api/v1/recruitment', recruitmentRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/settings', settingRoutes);
+app.use('/api/v1/saved-jobs', savedJobRoutes);
 
 // 3. 404 handler
 app.use((req, res, next) => {

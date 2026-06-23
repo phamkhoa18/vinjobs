@@ -68,6 +68,11 @@ import AdminCategories from './pages/admin/ManageCategoriesPage';
 import AdminAppearance from './pages/admin/ManageAppearancePage';
 import AdminSettings from './pages/admin/SettingsPage';
 import AdminProfilePage from './pages/admin/AdminProfilePage';
+import ManageUsersPage from './pages/admin/ManageUsersPage';
+import ManageJobsPage from './pages/admin/ManageJobsPage';
+import ManageCategoriesPage from './pages/admin/ManageCategoriesPage';
+import ManageBlogsPage from './pages/admin/ManageBlogsPage';
+import SettingsPage from './pages/admin/SettingsPage';
 
 // ─── Content Manager Dashboard ──────────────────────────────────────────────
 import ContentPosts from './pages/content/ManagePostsPage';
@@ -177,6 +182,9 @@ function AppLayout() {
         <Route path="/admin/categories" element={
           <RoleRoute allowedRoles={['ADMIN']}><AdminCategories /></RoleRoute>
         } />
+        <Route path="/admin/blogs" element={
+          <RoleRoute allowedRoles={['ADMIN']}><ManageBlogsPage /></RoleRoute>
+        } />
         <Route path="/admin/appearance" element={
           <RoleRoute allowedRoles={['ADMIN']}><AdminAppearance /></RoleRoute>
         } />
@@ -189,10 +197,10 @@ function AppLayout() {
 
         {/* Content Manager */}
         <Route path="/content/posts" element={
-          <RoleRoute allowedRoles={['CONTENT_MANAGER', 'ADMIN']}><ContentPosts /></RoleRoute>
+          <RoleRoute allowedRoles={['ADMIN']}><ContentPosts /></RoleRoute>
         } />
         <Route path="/content/categories" element={
-          <RoleRoute allowedRoles={['CONTENT_MANAGER', 'ADMIN']}><ContentCategories /></RoleRoute>
+          <RoleRoute allowedRoles={['ADMIN']}><ContentCategories /></RoleRoute>
         } />
 
         {/* Fallback */}
@@ -207,6 +215,7 @@ function AppLayout() {
       <Header />
       <main style={{ paddingTop: pathname === '/' ? 0 : 'var(--spacing-header-height)' }}>
         <Routes>
+          {/* Core */}
           {/* Core */}
           <Route path="/" element={<HomePage />} />
           <Route path="/jobs" element={<JobsPage />} />

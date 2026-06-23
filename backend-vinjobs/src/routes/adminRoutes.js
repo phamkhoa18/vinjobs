@@ -26,6 +26,7 @@ router.get('/stats', asyncHandler(async (req, res) => {
     totalJobs,
     totalApplications,
     pendingCompanies,
+    pendingJobs,
     categoryDataRaw,
     recentUsers,
     recentCompanies,
@@ -37,6 +38,7 @@ router.get('/stats', asyncHandler(async (req, res) => {
     Job.countDocuments({ status: 'APPROVED' }),
     Application.countDocuments(),
     Company.countDocuments({ status: 'PENDING' }),
+    Job.countDocuments({ status: 'PENDING' }),
     // Category Data
     Job.aggregate([
       { $group: { _id: '$category', value: { $sum: 1 } } },
@@ -95,12 +97,35 @@ router.get('/stats', asyncHandler(async (req, res) => {
         totalJobs,
         totalApplications,
         pendingCompanies,
+        pendingJobs,
       },
       categoryData: categoryDataRaw.length > 0 ? categoryDataRaw : [{ name: 'Chưa có data', value: 1 }],
       recentActivities,
       growthData
     },
   });
+}));
+
+// --- NOTIFICATIONS ---
+// GET /api/v1/admin/notifications
+router.get('/notifications', asyncHandler(async (req, res) => {
+  const notifications = await (await import('../models/Notification.js')).default.find({ user_id: req.user.id })
+    .sort('-created_at')
+    .limit(20);
+    
+  res.status(200).json({
+    status: 'success',
+    data: { notifications }
+  });
+}));
+
+// PATCH /api/v1/admin/notifications/read-all
+router.patch('/notifications/read-all', asyncHandler(async (req, res) => {
+  await (await import('../models/Notification.js')).default.updateMany(
+    { user_id: req.user.id, is_read: false },
+    { $set: { is_read: true } }
+  );
+  res.status(200).json({ status: 'success' });
 }));
 
 // --- USERS ---
@@ -506,9 +531,26 @@ router.patch('/jobs/:id/status', asyncHandler(async (req, res, next) => {
     req.params.id,
     { status },
     { new: true }
-  );
+  ).populate('employer_id').populate('company_id');
 
   if (!job) return next(new AppError('Không tìm thấy tin tuyển dụng', 404));
+
+  // Trigger Notification to Employer
+  try {
+    const NotificationFacade = (await import('../patterns/facade/NotificationFacade.js')).default;
+    if (status === 'APPROVED' && job.employer_id) {
+      await NotificationFacade.sendJobApprovedNotification(job, job.employer_id);
+      
+      // Gửi thông báo cho những người theo dõi công ty
+      if (job.company_id) {
+        await NotificationFacade.sendNewJobToFollowersNotification(job, job.company_id);
+      }
+    } else if (status === 'REJECTED' && job.employer_id) {
+      await NotificationFacade.sendJobRejectedNotification(job, job.employer_id);
+    }
+  } catch (err) {
+    console.error('[AdminRoutes] Lỗi khi gửi thông báo job status:', err);
+  }
 
   res.status(200).json({
     status: 'success',

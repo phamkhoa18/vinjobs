@@ -7,16 +7,28 @@ import Job from '../models/Job.js';
 import AppError from '../utils/AppError.js';
 
 import companyController from '../controllers/CompanyController.js';
+import followCompanyController from '../controllers/FollowCompanyController.js';
 
 const router = express.Router();
 
 // ============ PUBLIC ROUTES ============
+
+// GET /api/v1/companies/top - Get top companies
+router.get('/top', companyController.getTopCompanies);
 
 // GET /api/v1/companies - List companies
 router.get('/', companyController.getCompanies);
 
 // GET /api/v1/companies/:id - Get company detail + jobs
 router.get('/:id', companyController.getCompany);
+
+// ============ PROTECTED ROUTES (CANDIDATE & OTHERS) ============
+
+// POST /api/v1/companies/:id/follow - Toggle follow company
+router.post('/:id/follow', protect, followCompanyController.toggleFollow);
+
+// GET /api/v1/companies/:id/check-follow - Check follow status
+router.get('/:id/check-follow', protect, followCompanyController.checkFollow);
 
 // ============ PROTECTED ROUTES (EMPLOYER) ============
 router.use(protect, restrictTo('EMPLOYER', 'ADMIN'));

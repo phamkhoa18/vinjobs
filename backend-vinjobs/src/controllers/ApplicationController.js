@@ -23,6 +23,30 @@ class ApplicationController {
     }
   }
 
+  async checkApplied(req, res, next) {
+    try {
+      const candidateId = req.user.id;
+      const { jobId } = req.params;
+
+      if (!jobId) {
+        return next(new AppError('Vui lòng cung cấp jobId', 400));
+      }
+
+      // Check if Application exists
+      const Application = (await import('../models/Application.js')).default;
+      const existing = await Application.findOne({ candidate_id: candidateId, job_id: jobId });
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          applied: !!existing
+        }
+      });
+    } catch (error) {
+      next(new AppError(error.message, 400));
+    }
+  }
+
   async getMyApplications(req, res, next) {
     try {
       const candidateId = req.user.id;
