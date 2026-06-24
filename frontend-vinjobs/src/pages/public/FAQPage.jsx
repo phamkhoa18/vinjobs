@@ -6,32 +6,26 @@ const categories = [
   { key: 'candidate', label: 'Ứng viên', icon: 'person' },
   { key: 'employer', label: 'Nhà tuyển dụng', icon: 'business' },
   { key: 'account', label: 'Tài khoản', icon: 'manage_accounts' },
-  { key: 'payment', label: 'Thanh toán', icon: 'payments' },
 ];
 
 const faqs = [
   // Ứng viên
   { cat: 'candidate', q: 'Làm sao để tạo hồ sơ ứng tuyển?', a: 'Đăng ký tài khoản ứng viên → Vào Dashboard → Hồ sơ của tôi → Điền đầy đủ thông tin. Hồ sơ càng đầy đủ, cơ hội được nhà tuyển dụng chú ý càng cao.' },
   { cat: 'candidate', q: 'Tôi có thể ứng tuyển bao nhiêu việc?', a: 'Không giới hạn! Bạn có thể ứng tuyển bất kỳ vị trí nào phù hợp. Tuy nhiên, nên chọn lọc các vị trí thực sự phù hợp để tăng tỷ lệ thành công.' },
-  { cat: 'candidate', q: 'Làm sao để biết hồ sơ đã được xem?', a: 'Vào Dashboard → Hồ sơ đã nộp để xem trạng thái từng đơn ứng tuyển. Gói PRO cho phép xem ai đã xem hồ sơ của bạn.' },
+  { cat: 'candidate', q: 'Làm sao để biết hồ sơ đã được xem?', a: 'Vào Dashboard → Hồ sơ đã nộp để xem trạng thái từng đơn ứng tuyển.' },
   { cat: 'candidate', q: 'Tôi muốn lưu việc làm để xem sau?', a: 'Bấm biểu tượng trái tim ❤️ trên tin tuyển dụng để lưu. Xem lại tại mục Tin đã lưu.' },
   { cat: 'candidate', q: 'CV của tôi có được bảo mật không?', a: 'Có. CV chỉ được gửi đến nhà tuyển dụng khi bạn chủ động ứng tuyển. Bạn có thể tắt chế độ công khai hồ sơ trong cài đặt.' },
 
   // Nhà tuyển dụng
-  { cat: 'employer', q: 'Đăng tin tuyển dụng có mất phí không?', a: 'Gói cơ bản cho phép đăng tin miễn phí với giới hạn. Để đăng nhiều tin hơn và tiếp cận ứng viên tốt hơn, bạn có thể nâng cấp lên gói PRO hoặc Đối Tác.' },
+  { cat: 'employer', q: 'Đăng tin tuyển dụng có mất phí không?', a: 'Hoàn toàn miễn phí! Bạn có thể đăng tin tuyển dụng không giới hạn trên VinJobs.' },
   { cat: 'employer', q: 'Tin đăng hiển thị trong bao lâu?', a: 'Tin tuyển dụng hiển thị trong 30 ngày kể từ ngày đăng. Bạn có thể gia hạn hoặc đăng lại sau khi hết hạn.' },
-  { cat: 'employer', q: 'Làm sao để tìm ứng viên phù hợp?', a: 'Sử dụng tính năng tìm kiếm ứng viên với bộ lọc theo ngành nghề, kỹ năng, kinh nghiệm, địa điểm. Gói Đối Tác cho phép truy cập kho ứng viên không giới hạn.' },
-  { cat: 'employer', q: 'Tôi có thể liên hệ trực tiếp ứng viên không?', a: 'Có, khi ứng viên ứng tuyển bạn sẽ nhận được thông tin liên lạc. Với gói Đối Tác, bạn có thể chủ động liên hệ ứng viên từ kho dữ liệu.' },
+  { cat: 'employer', q: 'Làm sao để tìm ứng viên phù hợp?', a: 'Sử dụng tính năng tìm kiếm ứng viên với bộ lọc theo ngành nghề, kỹ năng, kinh nghiệm, địa điểm.' },
+  { cat: 'employer', q: 'Tôi có thể liên hệ trực tiếp ứng viên không?', a: 'Có, khi ứng viên ứng tuyển bạn sẽ nhận được thông tin liên lạc qua hệ thống.' },
 
   // Tài khoản
   { cat: 'account', q: 'Quên mật khẩu thì làm sao?', a: 'Vào trang Đăng nhập → Quên mật khẩu → Nhập email đã đăng ký → Kiểm tra email để đặt lại mật khẩu.' },
   { cat: 'account', q: 'Làm sao để đổi email?', a: 'Vào Dashboard → Cài đặt tài khoản → Đổi email. Bạn cần xác thực email mới trước khi thay đổi có hiệu lực.' },
   { cat: 'account', q: 'Tôi muốn xóa tài khoản?', a: 'Gửi email đến contact@vinjobs.vn với tiêu đề "Yêu cầu xóa tài khoản" kèm email đăng ký. Chúng tôi sẽ xử lý trong vòng 3 ngày làm việc.' },
-
-  // Thanh toán
-  { cat: 'payment', q: 'Các phương thức thanh toán được hỗ trợ?', a: 'Chúng tôi hỗ trợ: Thẻ ngân hàng (Visa/Mastercard), Momo, ZaloPay, và chuyển khoản ngân hàng.' },
-  { cat: 'payment', q: 'Có được hoàn tiền không?', a: 'Có, hoàn tiền 100% trong vòng 7 ngày kể từ ngày thanh toán nếu chưa sử dụng các tính năng trả phí. Sau 7 ngày, không hỗ trợ hoàn tiền.' },
-  { cat: 'payment', q: 'Tôi có thể hủy gói PRO bất cứ lúc nào không?', a: 'Có, bạn có thể hủy bất cứ lúc nào. Gói sẽ vẫn hoạt động đến hết kỳ thanh toán hiện tại, sau đó tự động chuyển về gói miễn phí.' },
 ];
 
 export default function FAQPage() {
