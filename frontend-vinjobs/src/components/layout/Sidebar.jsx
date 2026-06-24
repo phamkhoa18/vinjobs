@@ -17,7 +17,6 @@ const MENUS = {
     { name: 'Quản lý tin đăng', path: '/employer/jobs', icon: 'post_add' },
     { name: 'Quản lý ứng viên', path: '/employer/applicants', icon: 'group' },
     { name: 'Hồ sơ công ty', path: '/employer/company', icon: 'business' },
-    { name: 'Gói dịch vụ', path: '/employer/subscription', icon: 'card_membership' },
   ],
   admin: [
     { name: 'Dashboard', path: '/admin', icon: 'dashboard' },

@@ -205,29 +205,7 @@ export default function Header() {
                   ))}
                 </div>
 
-                {/* Dịch vụ trả phí */}
-                <div className="px-5 pt-3 pb-2 border-t border-[#f3f4f6]">
-                  <p className="text-[12px] font-semibold text-[#9ca3af] uppercase tracking-wide mb-1">Dịch vụ</p>
-                </div>
-                <div className="px-2 pb-3">
-                  {[
-                    { icon: 'workspace_premium', label: 'Gói PRO', to: '/pro', color: '#8b5cf6' },
-                    { icon: 'verified', label: 'Kênh Đối Tác', to: '/partner', color: '#059669' },
-                  ].map((item) => (
-                    <Link
-                      key={item.label}
-                      to={item.to}
-                      onClick={() => setGuestMenuOpen(false)}
-                      className="flex items-center justify-between px-3 py-3 rounded-xl hover:bg-[#f9fafb] transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="mi text-[22px]" style={{ color: item.color }}>{item.icon}</span>
-                        <span className="text-[14px] font-medium text-[#374151] group-hover:text-primary transition-colors">{item.label}</span>
-                      </div>
-                      <span className="mi text-[18px] text-[#d1d5db] group-hover:text-[#9ca3af] transition-colors">chevron_right</span>
-                    </Link>
-                  ))}
-                </div>
+
               </div>
             )}
           </div>
@@ -367,26 +345,7 @@ export default function Header() {
               )}
             </div>
 
-            {/* Dịch vụ */}
-            <div className="px-5 pt-3 pb-2 border-t border-[#f3f4f6]">
-              <p className="text-[12px] font-semibold text-[#9ca3af] uppercase tracking-wide mb-1">Dịch vụ</p>
-            </div>
-            <div className="px-2 pb-3 border-b border-[#f3f4f6]">
-              <Link to="/pro" onClick={() => setUserMenuOpen(false)} className="flex items-center justify-between px-3 py-3 rounded-xl hover:bg-[#f9fafb] transition-all group">
-                <div className="flex items-center gap-3">
-                  <span className="mi text-[22px] text-[#8b5cf6]">workspace_premium</span>
-                  <span className="text-[14px] font-medium text-[#374151] group-hover:text-primary transition-colors">Gói PRO</span>
-                </div>
-                <span className="mi text-[18px] text-[#d1d5db] group-hover:text-[#9ca3af] transition-colors">chevron_right</span>
-              </Link>
-              <Link to="/partner" onClick={() => setUserMenuOpen(false)} className="flex items-center justify-between px-3 py-3 rounded-xl hover:bg-[#f9fafb] transition-all group">
-                <div className="flex items-center gap-3">
-                  <span className="mi text-[22px] text-[#059669]">verified</span>
-                  <span className="text-[14px] font-medium text-[#374151] group-hover:text-primary transition-colors">Kênh Đối Tác</span>
-                </div>
-                <span className="mi text-[18px] text-[#d1d5db] group-hover:text-[#9ca3af] transition-colors">chevron_right</span>
-              </Link>
-            </div>
+
 
             {/* Logout */}
             <div className="p-2">

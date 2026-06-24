@@ -29,9 +29,7 @@ import SavedSearchesPage from './pages/user/SavedSearchesPage';
 import ViewHistoryPage from './pages/user/ViewHistoryPage';
 import MyReviewsPage from './pages/user/MyReviewsPage';
 
-// ─── Service Pages ───────────────────────────────────────────────────────────
-import ProPackagePage from './pages/services/ProPackagePage';
-import PartnerChannelPage from './pages/services/PartnerChannelPage';
+
 
 // ─── Auth Pages ──────────────────────────────────────────────────────────────
 import LoginPage from './pages/auth/LoginPage';
@@ -55,7 +53,7 @@ import EmployerJobs from './pages/employer/ManageJobsPage';
 import EmployerPostJob from './pages/employer/PostJobPage';
 import EmployerEditJob from './pages/employer/EditJobPage';
 import EmployerApplicants from './pages/employer/ManageApplicantsPage';
-import EmployerSubscription from './pages/employer/SubscriptionPage';
+
 import EmployerVerificationPage from './pages/employer/VerificationPage';
 
 // ─── Admin Dashboard ────────────────────────────────────────────────────────
@@ -160,9 +158,7 @@ function AppLayout() {
         <Route path="/employer/applicants" element={
           <VerifiedEmployerRoute><EmployerApplicants /></VerifiedEmployerRoute>
         } />
-        <Route path="/employer/subscription" element={
-          <VerifiedEmployerRoute><EmployerSubscription /></VerifiedEmployerRoute>
-        } />
+
 
         {/* Admin — role: ADMIN */}
         <Route path="/admin" element={
@@ -236,9 +232,7 @@ function AppLayout() {
           <Route path="/view-history" element={<ViewHistoryPage />} />
           <Route path="/my-reviews" element={<MyReviewsPage />} />
 
-          {/* Services */}
-          <Route path="/pro" element={<ProPackagePage />} />
-          <Route path="/partner" element={<PartnerChannelPage />} />
+
 
           {/* Info & Legal */}
           <Route path="/about" element={<AboutPage />} />

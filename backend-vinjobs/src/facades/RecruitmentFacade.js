@@ -4,8 +4,6 @@
  */
 import AppError from '../utils/AppError.js';
 import authService from '../services/AuthService.js';
-import subscriptionService from '../services/SubscriptionService.js';
-import paymentService from '../services/PaymentService.js';
 import notificationService from '../services/NotificationService.js';
 import jobService from '../services/JobService.js';
 import applicationService from '../services/ApplicationService.js';
@@ -52,22 +50,7 @@ class RecruitmentFacade {
     const application = await applicationService.updateStatus(employerId, appId, status);
     return application;
   }
-
-  /**
-   * Mua gói dịch vụ
-   */
-  async purchasePlan(employerId, planId, method) {
-    const employer = await authService.getUserById(employerId);
-    if (employer.role !== 'EMPLOYER') {
-      throw new AppError('Chỉ nhà tuyển dụng mới có thể mua gói dịch vụ', 403);
-    }
-    const plan = await subscriptionService.getPlanById(planId);
-    const payment = await paymentService.createPayment({ employerId, planId, amount: plan.price, method });
-    const isPaid = await paymentService.processPayment(payment._id);
-    if (!isPaid) throw new AppError('Thanh toán thất bại', 400);
-    const activeSub = await subscriptionService.activateSubscription(employerId, plan);
-    return { activeSub };
-  }
 }
+
 
 export default new RecruitmentFacade();
