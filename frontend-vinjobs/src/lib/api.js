@@ -332,7 +332,10 @@ export const publicApi = {
   getSettings: () => api.get('/settings'),
 
   // Jobs
-  jobs: (params) => api.get('/jobs', { params }),
+  jobs: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return api.get(`/jobs${qs ? `?${qs}` : ''}`);
+  },
   
   // Job Categories
   getCategories: () => api.get('/jobs/categories').then(res => res.data),
@@ -344,18 +347,28 @@ export const publicApi = {
 export const blogApi = {
   /**
    * @param {Object} [params]
-   * @returns {Promise<SuccessResponse<{ posts: any[], totalCount: number }>>}
+   * @returns {Promise<{ posts: any[], totalCount: number }>}
    */
-  getPosts: (params) => api.get('/blog/posts', { params }).then(res => res.data),
+  getPosts: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return api.get(`/blog/posts${qs ? `?${qs}` : ''}`).then(res => res.data);
+  },
 
   /**
    * @param {string} slug
-   * @returns {Promise<SuccessResponse<{ post: any }>>}
+   * @returns {Promise<{ post: any }>}
+   */
+  getPost: (slug) => api.get(`/blog/posts/${slug}`).then(res => res.data),
+
+  /**
+   * Alias for getPost
+   * @param {string} slug
+   * @returns {Promise<{ post: any }>}
    */
   getPostBySlug: (slug) => api.get(`/blog/posts/${slug}`).then(res => res.data),
 
   /**
-   * @returns {Promise<SuccessResponse<{ categories: any[] }>>}
+   * @returns {Promise<{ categories: any[] }>}
    */
   getCategories: () => api.get('/blog/categories').then(res => res.data),
 };

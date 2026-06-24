@@ -462,7 +462,7 @@ export default function HomePage() {
 
     // 4. Fetch Blog Posts
     blogApi.getPosts({ limit: 4 })
-      .then(res => setBlogPosts(res.data?.posts || []))
+      .then(res => setBlogPosts(res?.posts || []))
       .catch(err => console.error(err));
 
     const fetchHomeData = async () => {

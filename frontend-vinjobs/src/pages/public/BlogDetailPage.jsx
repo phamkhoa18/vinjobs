@@ -27,6 +27,7 @@ const categoryColors = {
 export default function BlogDetailPage() {
   const { id } = useParams(); // actually slug
   const [post, setPost] = useState(null);
+  const [relatedPosts, setRelatedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -35,11 +36,17 @@ export default function BlogDetailPage() {
 
   useEffect(() => {
     setLoading(true);
-    blogApi.getPost(id)
-      .then(res => {
-        const data = res?.post || res;
+    Promise.all([
+      blogApi.getPost(id),
+      blogApi.getPosts({ limit: 6 }),
+    ])
+      .then(([postRes, postsRes]) => {
+        const data = postRes?.post || postRes;
         setPost(data);
         setLikeCount(Math.floor((data?.view_count || 0) * 0.08));
+        // Filter out current post from related
+        const allPosts = postsRes?.posts || [];
+        setRelatedPosts(allPosts.filter(p => p.slug !== id).slice(0, 4));
       })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
@@ -70,7 +77,7 @@ export default function BlogDetailPage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <div className="min-h-screen flex items-center justify-center"><span className="mi text-[24px] animate-spin text-primary">autorenew</span></div>;
   }
 
   if (!post) {
@@ -86,7 +93,7 @@ export default function BlogDetailPage() {
     );
   }
 
-  const sidebarPosts = []; // TODO fetch related posts if needed
+  const sidebarPosts = relatedPosts;
   const catStyle = categoryColors[post.category_id?.name] || categoryColors['Tin nổi bật'];
 
   return (

@@ -23,7 +23,7 @@ const MENUS = {
     { name: 'Dashboard', path: '/admin', icon: 'dashboard' },
     { name: 'Người dùng', path: '/admin/users', icon: 'people' },
     { name: 'Công ty', path: '/admin/companies', icon: 'business_center' },
-    { name: 'Gói & Doanh thu', path: '/admin/subscriptions', icon: 'payments' },
+
   ],
   content: [
     { name: 'Quản lý bài viết', path: '/content/posts', icon: 'article' },

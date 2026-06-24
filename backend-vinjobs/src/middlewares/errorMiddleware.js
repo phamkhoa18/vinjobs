@@ -25,6 +25,8 @@ const handleJWTExpiredError = () =>
   new AppError('Token đã hết hạn! Vui lòng đăng nhập lại.', 401);
 
 const sendErrorDev = (err, res) => {
+  console.error(err.stack);
+
   res.status(err.statusCode).json({
     status: err.status,
     error: err,
@@ -40,7 +42,7 @@ const sendErrorProd = (err, res) => {
       message: err.message,
     });
   } else {
-    console.error('ERROR 💥', err);
+    console.error('ERROR 💥', err.stack || err);
     res.status(500).json({
       status: 'error',
       message: 'Đã xảy ra lỗi. Vui lòng thử lại sau!',

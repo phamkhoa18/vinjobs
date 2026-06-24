@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmployerLayout from '../../components/layout/EmployerLayout';
-import { jobsApi, blogApi } from '../../lib/api';
+import { jobsApi, blogApi, getImageUrl } from '../../lib/api';
 import LocationService from '../../services/LocationService';
 import { Form, Input, Select, Button, Steps, Row, Col, Checkbox, InputNumber, DatePicker, TimePicker, message, Typography, Space, Divider, Tag, Upload } from 'antd';
 import { CheckCircleOutlined, PlusOutlined, VideoCameraOutlined } from '@ant-design/icons';
@@ -160,7 +160,6 @@ export default function PostJobPage() {
         location: fullLocation,
         deadline: values.deadline.format('YYYY-MM-DD'),
         slots: values.slots,
-        category_id: categoryId,
         salary_min: values.negotiable ? null : (values.salaryMin ? values.salaryMin * 1000000 : null),
         salary_max: values.negotiable ? null : (values.salaryMax ? values.salaryMax * 1000000 : null),
         salary_negotiable: values.negotiable || false,
@@ -589,7 +588,7 @@ export default function PostJobPage() {
                     <Title level={5} className="mt-4">Hình ảnh văn phòng</Title>
                     <div className="flex flex-wrap gap-4 mt-2">
                       {formValues.images.map((file, idx) => {
-                        const url = file.response?.data?.url || file.url || (file.originFileObj ? URL.createObjectURL(file.originFileObj) : '');
+                        const url = file.response?.data?.url ? getImageUrl(file.response.data.url) : (file.url || (file.originFileObj ? URL.createObjectURL(file.originFileObj) : ''));
                         if (!url) return null;
                         return (
                           <div key={idx} className="w-32 h-32 rounded-lg overflow-hidden border border-gray-200 shadow-sm">

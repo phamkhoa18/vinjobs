@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { authApi, publicJobsApi } from '../../lib/api';
+import { authApi, publicJobsApi, getImageUrl } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Row, Col, Card, Statistic, List, Typography, Tag, Progress, Button, Avatar, Spin, Space } from 'antd';
 import { 
@@ -166,7 +166,7 @@ export default function Dashboard() {
                     const s = statusConfig[app.status] || statusConfig['PENDING'];
                     const companyName = app.job_id?.company_id?.name || 'Công ty ẩn danh';
                     const jobTitle = app.job_id?.title || 'Công việc không còn tồn tại';
-                    const logo = app.job_id?.company_id?.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&background=random&size=60`;
+                    const logo = app.job_id?.company_id?.logo ? getImageUrl(app.job_id.company_id.logo) : `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&background=random&size=60`;
                     
                     return (
                       <List.Item className="px-6 hover:bg-gray-50 transition-colors">
@@ -217,7 +217,7 @@ export default function Dashboard() {
                     renderItem={(job) => (
                       <List.Item className="px-6 hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/jobs/${job._id}`)}>
                         <List.Item.Meta
-                          avatar={<Avatar shape="square" src={job.company_id?.logo || '/default-company-logo.png'} />}
+                          avatar={<Avatar shape="square" src={job.company_id?.logo ? getImageUrl(job.company_id.logo) : '/default-company-logo.png'} />}
                           title={<Text strong className="text-sm truncate block">{job.title}</Text>}
                           description={<Text type="danger" className="text-xs font-semibold">{formatSalary(job.salary_min, job.salary_max)}</Text>}
                         />

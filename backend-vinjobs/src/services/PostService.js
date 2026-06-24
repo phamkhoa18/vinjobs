@@ -3,21 +3,40 @@ import AppError from '../utils/AppError.js';
 
 class PostService {
   async createPost(authorId, data) {
+    if (data.content) {
+      data.reading_time = Math.max(1, Math.ceil(data.content.replace(/<[^>]*>?/gm, '').split(/\s+/).length / 200));
+    }
     return await Post.create({
       ...data,
       author_id: authorId,
-      status: 'DRAFT'
+      status: data.status || 'DRAFT'
     });
   }
 
-  async updatePost(authorId, postId, data) {
+  async updatePost(postId, data) {
+    if (data.content) {
+      data.reading_time = Math.max(1, Math.ceil(data.content.replace(/<[^>]*>?/gm, '').split(/\s+/).length / 200));
+    }
     const post = await Post.findOneAndUpdate(
-      { _id: postId, author_id: authorId },
+      { _id: postId }, // Admin can update any post
       data,
       { new: true, runValidators: true }
     );
-    if (!post) throw new AppError('Bài viết không tồn tại hoặc bạn không có quyền sửa', 404);
+    if (!post) throw new AppError('Bài viết không tồn tại', 404);
     return post;
+  }
+
+  async deletePost(postId) {
+    const post = await Post.findByIdAndDelete(postId);
+    if (!post) throw new AppError('Bài viết không tồn tại', 404);
+    return post;
+  }
+
+  async getAdminPosts(query) {
+    return await Post.find()
+      .populate('author_id', 'name avatar')
+      .populate('category_id', 'name slug')
+      .sort('-createdAt');
   }
 
   async getPublishedPosts(query) {

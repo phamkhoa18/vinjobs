@@ -28,7 +28,7 @@ const ADMIN_MENUS_BASE = [
   { key: '/admin/users', icon: <TeamOutlined />, label: 'Ứng viên' },
   { key: '/admin/companies', icon: <ShopOutlined />, label: 'Nhà tuyển dụng' },
   { key: '/admin/jobs', icon: <FileTextOutlined />, label: 'Việc làm' },
-  { key: '/admin/subscriptions', icon: <DollarOutlined />, label: 'Gói & Doanh thu' },
+
   { key: '/admin/categories', icon: <AppstoreOutlined />, label: 'Danh mục' },
   { key: '/admin/blogs', icon: <ReadOutlined />, label: 'Cẩm nang / Blog' },
   { key: '/admin/appearance', icon: <GlobalOutlined />, label: 'Giao diện' },

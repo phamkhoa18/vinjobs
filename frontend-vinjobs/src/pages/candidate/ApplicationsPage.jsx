@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { applicationsApi } from '../../lib/api';
+import { applicationsApi, getImageUrl } from '../../lib/api';
 import { Card, Typography, Tabs, Table, Tag, Row, Col, Statistic, Space, Button, Drawer, Steps, Avatar } from 'antd';
 import { 
   FileDoneOutlined, 
@@ -37,7 +37,7 @@ export default function ApplicationsPage() {
   const fetchApps = async () => {
     setLoading(true);
     try {
-      const res = await applicationsApi.getMyApplications({ limit: 100 });
+      const res = await applicationsApi.mine({ limit: 100 });
       if (res.status === 'success') {
         setApplications(res.data.applications || []);
       }
@@ -65,7 +65,7 @@ export default function ApplicationsPage() {
       render: (_, record) => {
         const jobTitle = record.job_id?.title || 'Việc làm không còn tồn tại';
         const companyName = record.job_id?.company_id?.name || record.employer_id?.full_name || 'Công ty';
-        const logo = record.job_id?.company_id?.logo || '/default-company-logo.png';
+        const logo = record.job_id?.company_id?.logo ? getImageUrl(record.job_id.company_id.logo) : '/default-company-logo.png';
         return (
           <Space>
             <Avatar shape="square" size={40} src={logo} />
@@ -189,7 +189,7 @@ export default function ApplicationsPage() {
                 <Avatar 
                   shape="square" 
                   size={56} 
-                  src={selectedApp.job_id?.company_id?.logo || '/default-company-logo.png'} 
+                  src={selectedApp.job_id?.company_id?.logo ? getImageUrl(selectedApp.job_id.company_id.logo) : '/default-company-logo.png'} 
                   className="bg-white border border-gray-200"
                 />
                 <div>

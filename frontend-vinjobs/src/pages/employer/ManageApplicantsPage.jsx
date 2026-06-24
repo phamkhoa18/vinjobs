@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import EmployerLayout from '../../components/layout/EmployerLayout';
-import { applicationsApi } from '../../lib/api';
+import { applicationsApi, getImageUrl } from '../../lib/api';
 import { Table, Tag, Button, Typography, Space, Input, Select, Row, Col, Drawer, Descriptions, Avatar, Statistic, message } from 'antd';
 import { SearchOutlined, EyeOutlined, CheckCircleOutlined, CloseCircleOutlined, CalendarOutlined, FileTextOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -46,7 +46,7 @@ export default function ManageApplicantsPage() {
 
   const filtered = applicants.filter(a => {
     const matchStatus = filterStatus === 'all' || a.status === filterStatus;
-    const candidateName = a.candidate_id?.full_name || '';
+    const candidateName = a.candidate_id?.name || '';
     const jobTitle = a.job_id?.title || '';
     const matchSearch = !search || candidateName.toLowerCase().includes(search.toLowerCase()) || jobTitle.toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
@@ -75,8 +75,8 @@ export default function ManageApplicantsPage() {
       title: 'Ứng viên',
       key: 'candidate',
       render: (_, record) => {
-        const name = record.candidate_id?.full_name || 'Ẩn danh';
-        const avatar = record.candidate_id?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+        const name = record.candidate_id?.name || 'Ẩn danh';
+        const avatar = record.candidate_id?.avatar ? getImageUrl(record.candidate_id.avatar) : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
         return (
           <div className="flex items-center gap-3">
             <Avatar src={avatar} size="large" />
@@ -231,11 +231,11 @@ export default function ManageApplicantsPage() {
           <div>
             <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
               <Avatar 
-                src={selectedApplicant.candidate_id?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedApplicant.candidate_id?.full_name)}&background=random`} 
+                src={selectedApplicant.candidate_id?.avatar ? getImageUrl(selectedApplicant.candidate_id.avatar) : `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedApplicant.candidate_id?.name)}&background=random`} 
                 size={80} 
               />
               <div>
-                <Title level={4} style={{ margin: 0 }}>{selectedApplicant.candidate_id?.full_name}</Title>
+                <Title level={4} style={{ margin: 0 }}>{selectedApplicant.candidate_id?.name}</Title>
                 <Text type="secondary" className="block mb-2">{selectedApplicant.candidate_id?.email}</Text>
                 <Tag color={(STATUS_CONFIG[selectedApplicant.status] || STATUS_CONFIG['PENDING']).color}>
                   {(STATUS_CONFIG[selectedApplicant.status] || STATUS_CONFIG['PENDING']).label}
@@ -277,7 +277,7 @@ export default function ManageApplicantsPage() {
             {selectedApplicant.cv_id && (
               <div>
                 <Title level={5}>Hồ sơ đính kèm (CV)</Title>
-                <Button type="dashed" block icon={<FileTextOutlined />} size="large">
+                <Button type="dashed" block icon={<FileTextOutlined />} size="large" href={getImageUrl(selectedApplicant.cv_id?.file_path)} target="_blank">
                   Xem/Tải xuống CV
                 </Button>
               </div>

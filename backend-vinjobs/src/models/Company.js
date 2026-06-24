@@ -143,7 +143,6 @@ const companySchema = new mongoose.Schema(
 
 // Index text cho tìm kiếm
 companySchema.index({ name: 'text', industry: 'text', description: 'text' });
-companySchema.index({ employer_id: 1 });
 companySchema.index({ status: 1 });
 
 // Middleware: Auto generate slug from name

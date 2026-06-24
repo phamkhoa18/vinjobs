@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { savedJobsApi } from '../../lib/api';
+import { savedJobsApi, getImageUrl } from '../../lib/api';
 import { toast } from 'react-hot-toast';
 import { Card, Typography, Input, Row, Col, Space, Button, Spin, Tag, Avatar, Empty } from 'antd';
 import { 
@@ -31,7 +31,7 @@ export default function SavedJobsPage() {
   const fetchSavedJobs = async () => {
     try {
       setLoading(true);
-      const res = await savedJobsApi.getMySavedJobs();
+      const res = await savedJobsApi.getMySavedJobs({ limit: 100 });
       if (res.status === 'success') {
         setJobs(res.data.jobs || []);
       }
@@ -112,7 +112,7 @@ export default function SavedJobsPage() {
                     <Avatar 
                       shape="square" 
                       size={64} 
-                      src={job.company_id?.logo || '/default-company-logo.png'} 
+                      src={job.company_id?.logo ? getImageUrl(job.company_id.logo) : '/default-company-logo.png'} 
                       className="border border-gray-100 flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">

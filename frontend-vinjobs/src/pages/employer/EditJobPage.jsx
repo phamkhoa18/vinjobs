@@ -690,7 +690,7 @@ export default function EditJobPage() {
                     <Title level={5} className="mt-4">Hình ảnh văn phòng</Title>
                     <div className="flex flex-wrap gap-4 mt-2">
                       {formValues.images.map((file, idx) => {
-                        const url = file.response?.data?.url || file.url || (file.originFileObj ? URL.createObjectURL(file.originFileObj) : '');
+                        const url = file.response?.data?.url ? getImageUrl(file.response.data.url) : (file.url || (file.originFileObj ? URL.createObjectURL(file.originFileObj) : ''));
                         if (!url) return null;
                         return (
                           <div key={idx} className="w-32 h-32 rounded-lg overflow-hidden border border-gray-200 shadow-sm">

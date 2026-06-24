@@ -63,7 +63,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/ManageUsersPage';
 import AdminCompanies from './pages/admin/ManageCompaniesPage';
 import AdminJobs from './pages/admin/ManageJobsPage';
-import AdminSubscriptions from './pages/admin/ManageSubscriptionsPage';
+
 import AdminCategories from './pages/admin/ManageCategoriesPage';
 import AdminAppearance from './pages/admin/ManageAppearancePage';
 import AdminSettings from './pages/admin/SettingsPage';
@@ -72,6 +72,7 @@ import ManageUsersPage from './pages/admin/ManageUsersPage';
 import ManageJobsPage from './pages/admin/ManageJobsPage';
 import ManageCategoriesPage from './pages/admin/ManageCategoriesPage';
 import ManageBlogsPage from './pages/admin/ManageBlogsPage';
+import BlogFormPage from './pages/admin/BlogFormPage';
 import SettingsPage from './pages/admin/SettingsPage';
 
 // ─── Content Manager Dashboard ──────────────────────────────────────────────
@@ -176,14 +177,18 @@ function AppLayout() {
         <Route path="/admin/jobs" element={
           <RoleRoute allowedRoles={['ADMIN']}><AdminJobs /></RoleRoute>
         } />
-        <Route path="/admin/subscriptions" element={
-          <RoleRoute allowedRoles={['ADMIN']}><AdminSubscriptions /></RoleRoute>
-        } />
+
         <Route path="/admin/categories" element={
           <RoleRoute allowedRoles={['ADMIN']}><AdminCategories /></RoleRoute>
         } />
         <Route path="/admin/blogs" element={
           <RoleRoute allowedRoles={['ADMIN']}><ManageBlogsPage /></RoleRoute>
+        } />
+        <Route path="/admin/blogs/create" element={
+          <RoleRoute allowedRoles={['ADMIN']}><BlogFormPage /></RoleRoute>
+        } />
+        <Route path="/admin/blogs/edit/:id" element={
+          <RoleRoute allowedRoles={['ADMIN']}><BlogFormPage /></RoleRoute>
         } />
         <Route path="/admin/appearance" element={
           <RoleRoute allowedRoles={['ADMIN']}><AdminAppearance /></RoleRoute>

@@ -213,7 +213,7 @@ export default function Dashboard() {
       title: 'Ứng viên',
       key: 'candidate',
       render: (_, record) => (
-        <Text strong>{record.candidate_id?.full_name || 'Ẩn danh'}</Text>
+        <Text strong>{record.candidate_id?.name || 'Ẩn danh'}</Text>
       ),
     },
     {

@@ -37,7 +37,7 @@ class ApplicationService {
           select: 'name logo'
         }
       })
-      .populate('employer_id', 'full_name email name')
+      .populate('employer_id', 'name email avatar')
       .sort({ applied_at: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -63,7 +63,7 @@ class ApplicationService {
     if (job_id) filter.job_id = job_id;
 
     const applications = await Application.find(filter)
-      .populate('candidate_id', 'full_name email avatar')
+      .populate('candidate_id', 'name email avatar')
       .populate('job_id', 'title')
       .populate('cv_id')
       .sort({ applied_at: -1 })

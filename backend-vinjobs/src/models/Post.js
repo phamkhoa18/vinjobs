@@ -16,6 +16,26 @@ const postSchema = new mongoose.Schema(
     thumbnail: {
       type: String,
     },
+    excerpt: {
+      type: String,
+      maxlength: [500, 'Tóm tắt không được vượt quá 500 ký tự'],
+    },
+    tags: [{
+      type: String,
+      trim: true,
+    }],
+    is_featured: {
+      type: Boolean,
+      default: false,
+    },
+    reading_time: {
+      type: Number,
+      default: 0,
+    },
+    seo: {
+      meta_title: String,
+      meta_description: String,
+    },
     slug: {
       type: String,
       unique: true,
@@ -59,10 +79,9 @@ const postSchema = new mongoose.Schema(
 // Indexes
 postSchema.index({ author_id: 1 });
 postSchema.index({ status: 1 });
-postSchema.index({ slug: 1 });
 
 // Auto-generate slug trước khi save
-postSchema.pre('save', function (next) {
+postSchema.pre('save', function () {
   if (this.isModified('title')) {
     // Thêm Date.now để đảm bảo slug unique cho các bài viết trùng tên
     this.slug = slugify(`${this.title}-${Date.now()}`, {
@@ -70,7 +89,6 @@ postSchema.pre('save', function (next) {
       strict: true,
     });
   }
-  next();
 });
 
 const Post = mongoose.model('Post', postSchema);

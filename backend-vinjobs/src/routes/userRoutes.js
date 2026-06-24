@@ -31,7 +31,7 @@ router.get('/me/candidate-stats', asyncHandler(async (req, res) => {
     CV.countDocuments({ candidate_id: userId }),
     SavedJob.countDocuments({ candidate_id: userId }),
     Application.find({ candidate_id: userId })
-      .populate('job_id', 'title salaryMin salaryMax company_id')
+      .populate('job_id', 'title salary_min salary_max company_id')
       .sort('-applied_at')
       .limit(5)
   ]);

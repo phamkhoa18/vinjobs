@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import api, { cvApi } from '../../lib/api';
+import api, { cvApi, getImageUrl } from '../../lib/api';
 import { toast } from 'react-hot-toast';
 import { Card, Typography, Upload, List, Button, Tag, Space, Alert, Popconfirm, Spin, Row, Col } from 'antd';
 import { 
@@ -166,7 +166,7 @@ export default function CVManagementPage() {
                     ghost 
                     size="small" 
                     icon={<DownloadOutlined />} 
-                    href={cv.file_path} 
+                    href={getImageUrl(cv.file_path)} 
                     target="_blank"
                   >
                     Tải xuống

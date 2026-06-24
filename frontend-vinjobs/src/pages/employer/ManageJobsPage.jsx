@@ -145,7 +145,7 @@ export default function ManageJobsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <Title level={3} style={{ margin: 0 }}>Quản lý tin tuyển dụng</Title>
-          <Text type="secondary">{jobs.filter(j => j.status === 'active').length} tin đang hoạt động</Text>
+          <Text type="secondary">{jobs.filter(j => j.status === 'APPROVED').length} tin đang hoạt động</Text>
         </div>
         <Link to="/employer/post-job">
           <Button type="primary" icon={<PlusOutlined />} size="large">Đăng tin mới</Button>

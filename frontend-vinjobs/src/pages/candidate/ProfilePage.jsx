@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { authApi, userStorage } from '../../lib/api';
+import { authApi, userStorage, getImageUrl } from '../../lib/api';
 import { toast } from 'react-hot-toast';
 import { Form, Input, Select, Button, Card, Row, Col, Typography, Menu, Space, Modal, DatePicker, Avatar, List, Popconfirm, Tag, Spin } from 'antd';
 import { 
@@ -182,7 +182,7 @@ export default function ProfilePage() {
 
       <Card bordered={false} className="shadow-sm" style={{ marginBottom: '24px' }}>
         <Space size="large">
-          <Avatar size={80} src="https://ui-avatars.com/api/?name=Candidate&background=random" />
+          <Avatar size={80} src={form.getFieldValue('avatar') ? getImageUrl(form.getFieldValue('avatar')) : `https://ui-avatars.com/api/?name=${encodeURIComponent(form.getFieldValue('fullName') || 'User')}&background=random&size=80`} />
           <div>
             <Title level={5} style={{ margin: 0 }}>{form.getFieldValue('fullName')}</Title>
             <Text type="secondary">{form.getFieldValue('currentJob') || 'Chưa cập nhật công việc'} · {form.getFieldValue('province')}</Text>
