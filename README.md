@@ -1,122 +1,431 @@
-# VinJobs - Hệ Thống Tuyển Dụng & Tìm Việc Làm (MERN Stack)
+# 🚀 VinJobs — Nền Tảng Tuyển Dụng & Tìm Việc Làm
 
-VinJobs là một nền tảng công nghệ tuyển dụng hiện đại được thiết kế và xây dựng theo mô hình **MERN Stack** (MongoDB, Express.js, React.js, Node.js). Hệ thống được phát triển với trọng tâm là **Thiết kế Phần mềm Hướng Đối Tượng (Object-Oriented Design - OOD)**, áp dụng chặt chẽ các Mẫu thiết kế (Design Patterns) để đảm bảo mã nguồn mở rộng, dễ bảo trì và tối ưu hiệu suất.
+<div align="center">
 
-Hệ thống phục vụ 3 đối tượng người dùng chính: **Ứng viên (Candidate)**, **Nhà tuyển dụng (Employer)**, và **Quản trị viên (Admin)**.
+![VinJobs](vinjobs_scale.png)
 
----
+**Hệ thống tuyển dụng trực tuyến toàn diện xây dựng trên MERN Stack**
+**MongoDB · Express.js · React.js · Node.js**
 
-## 1. Kiến Trúc Hệ Thống (System Architecture)
+[![Node.js](https://img.shields.io/badge/Node.js-v18+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-v19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-v7+-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![License](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 
-- **Kiến trúc Tổng thể:** Client - Server API.
-- **Backend Architecture:** Sử dụng mô hình **MVC (Model-View-Controller)** mở rộng với **Service Layer**. 
-  - *Controllers* chỉ làm nhiệm vụ tiếp nhận HTTP Request và phản hồi HTTP Response.
-  - *Services* đóng gói toàn bộ logic nghiệp vụ (Business Logic).
-- **Frontend Architecture:** Mô hình **Component-Based** của React kết hợp với **Context API** (Quản lý State toàn cục như phiên đăng nhập) và kỹ thuật phân tách UI Component độc lập.
-
----
-
-## 2. Phân Tích Thiết Kế Hướng Đối Tượng (OOP & Design Patterns)
-
-Dự án áp dụng mạnh mẽ các nguyên lý SOLID và các mẫu thiết kế hướng đối tượng kinh điển của GoF (Gang of Four).
-
-### 2.1. Các Design Patterns Được Sử Dụng
-
-1. **Facade Pattern (Mẫu Mặt Tiền)**
-   - **Áp dụng:** Lớp `NotificationFacade` (`src/patterns/facade/NotificationFacade.js`).
-   - **Lý do:** Khi hệ thống cần gửi thông báo (ví dụ: Job được duyệt), hệ thống phải thực hiện nhiều bước phức tạp: Tìm người dùng, khởi tạo `EmailSender`, khởi tạo `JobApprovedNotification`, gọi `NotificationService` để lưu DB và gửi.
-   - **Tác dụng:** Cung cấp các giao diện tĩnh (Static Methods) cực kì đơn giản như `sendJobApprovedNotification(job, user)`. Các luồng Controller bên ngoài chỉ cần gọi 1 dòng code duy nhất, ẩn giấu đi toàn bộ sự phức tạp bên trong hệ thống.
-
-2. **Strategy / Bridge Pattern (Mẫu Chiến Lược / Cây Cầu)**
-   - **Áp dụng:** Hệ thống Notification. Lớp trừu tượng `BaseNotification` có chứa một đối tượng `sender` (kiểu `MessageSender`).
-   - **Lý do:** Tách biệt cấu trúc của Thông báo (Gồm Tiêu đề, Nội dung) ra khỏi logic Gửi Thông báo (Qua Email, Qua SMS, In-app).
-   - **Tác dụng:** Lớp `NewJobToFollowerNotification` chỉ cần tập trung định nghĩa nội dung HTML email, sau đó gọi `this.sender.send()`. Khác với cách code thủ tục truyền thống là nhét luôn hàm gửi email vào Controller.
-
-3. **Singleton Pattern (Mẫu Độc Bản)**
-   - **Áp dụng:** Các lớp Services (`JobService.js`, `CompanyService.js`) và Database Connection Object.
-   - **Lý do:** Đảm bảo trong suốt vòng đời ứng dụng chỉ có duy nhất 1 phiên bản của đối tượng xử lý Database hoặc Logic, tránh rò rỉ bộ nhớ (Memory Leak) khi khởi tạo lại class liên tục.
-
-4. **Observer Pattern (Mô phỏng Mẫu Quan Sát)**
-   - **Áp dụng:** Tính năng **Follow Company**.
-   - **Lý do:** Một Công ty (Subject) có nhiều Ứng viên theo dõi (Observers). Khi Công ty thay đổi trạng thái (Đăng tin tuyển dụng mới được duyệt), toàn bộ các Observers sẽ được thông báo ngay lập tức.
-   - **Tác dụng:** Sự tách biệt hoàn hảo, luồng đăng Job không cần quan tâm ứng viên nào đang follow, mà chỉ cần phát ra sự kiện thông qua Facade.
-
-### 2.2. Sơ Đồ Lớp và Các Lớp Đối Tượng (Models) Cốt Lõi
-
-Backend sử dụng `Mongoose` như một **ORM/ODM** để ánh xạ các Class trong code Node.js trực tiếp thành các Document trong MongoDB.
-
-* **Lớp `User`**: Đối tượng cơ sở quản lý thông tin định danh (Tên, Email, Password đã hash bằng Bcrypt, Role). Định nghĩa hàm instance `matchPassword()` đóng gói logic kiểm tra bảo mật bên trong Class.
-* **Lớp `Company`**: Quản lý thông tin pháp nhân của doanh nghiệp (Tên, Mã số thuế, Logo, Cover). Liên kết 1-1 với `User` (Employer). Ứng dụng Encapsulation (Đóng gói) bằng Mongoose Virtuals và Pre-save Hooks để tự động tạo `slug` thân thiện URL.
-* **Lớp `Job`**: Đối tượng Tin tuyển dụng. Chứa các thuộc tính nghiệp vụ (Salary, Location, Yêu cầu). Liên kết với `Company`.
-* **Lớp `Application`**: Lớp ánh xạ mối quan hệ N-N giữa `User` (Ứng viên) và `Job`. Một Object Application chứa thông tin CV, Thư giới thiệu, và trạng thái phỏng vấn (Pending, Accepted, Rejected).
-* **Lớp `FollowCompany`**: Đối tượng quản lý quan hệ M-N (Ứng viên - Công ty). Đảm bảo tính Uniqueness bằng Compound Indexing ở tầng Database.
-* **Hệ thống Lớp Notifications**: Lớp cha `BaseNotification` và các lớp con kế thừa (Inheritance) như `JobApprovedNotification`, `NewJobToFollowerNotification`. Bắt buộc triển khai phương thức đa hình (Polymorphism) `send()`.
+</div>
 
 ---
 
-## 3. Tính Năng Nổi Bật
+## 📋 Mục Lục
 
-### 🧑‍💻 Dành cho Ứng viên (Candidate)
-- **Đăng nhập & Xác thực:** Đăng nhập JWT an toàn, hỗ trợ Captcha và Phân quyền Guard Route chặt chẽ ở Frontend.
-- **Theo dõi Công ty (Follow):** Tương tác Realtime với công ty yêu thích.
-- **Tìm kiếm Việc làm Nâng cao:** Lọc theo ngành nghề, khu vực, mức lương. Tìm kiếm full-text search theo từ khóa.
-- **Nộp Hồ sơ (Apply):** Quản lý trạng thái ứng tuyển.
-- **Nhận Thông báo Tự động:** Nhận email khi công ty theo dõi có việc làm mới.
-
-### 🏢 Dành cho Nhà Tuyển Dụng (Employer)
-- **Quản lý Hồ sơ Công ty:** Đăng tải Logo, Banner, tích hợp Video giới thiệu công ty bằng Youtube.
-- **CRUD Tin tuyển dụng:** Tích hợp Rich Text Editor (Wysiwyg). Quản lý chi tiết địa điểm hành chính theo Tỉnh/Huyện/Xã.
-- **Quản lý CV & Trạng thái Ứng viên:** Duyệt hồ sơ và tương tác với các đơn ứng tuyển.
-
-### ⚙️ Dành cho Quản Trị Viên (Admin)
-- **Hệ thống Kiểm duyệt (Moderation):** Mọi công ty và tin đăng đều bắt buộc qua trạng thái `PENDING` và phải được Admin chuyển sang `APPROVED` mới hiển thị lên website.
-- **Quản lý User:** Thống kê, giám sát và chặn (Ban) tài khoản vi phạm.
-- **Dashboards:** Phân tích dữ liệu vận hành.
+- [Giới Thiệu](#-giới-thiệu)
+- [Kiến Trúc Hệ Thống](#-kiến-trúc-hệ-thống)
+- [Thiết Kế Hướng Đối Tượng & Design Patterns](#-thiết-kế-hướng-đối-tượng--design-patterns)
+- [Mô Hình Cơ Sở Dữ Liệu](#-mô-hình-cơ-sở-dữ-liệu)
+- [Tính Năng Chi Tiết](#-tính-năng-chi-tiết)
+- [Công Nghệ Sử Dụng](#-công-nghệ-sử-dụng)
+- [Cấu Trúc Thư Mục](#-cấu-trúc-thư-mục)
+- [Hướng Dẫn Cài Đặt](#-hướng-dẫn-cài-đặt)
+- [Tài Khoản Demo](#-tài-khoản-demo)
+- [API Endpoints](#-api-endpoints)
 
 ---
 
-## 4. Công Nghệ Sử Dụng (Tech Stack)
+## 📖 Giới Thiệu
+
+**VinJobs** là một nền tảng công nghệ tuyển dụng hiện đại, hoàn toàn **miễn phí**, được thiết kế và phát triển theo mô hình **MERN Stack** với trọng tâm là **Thiết kế Phần mềm Hướng Đối Tượng (OOD)**. Hệ thống áp dụng chặt chẽ các Mẫu thiết kế (Design Patterns) của GoF để đảm bảo mã nguồn có tính mở rộng cao, dễ bảo trì và tối ưu hiệu suất.
+
+Hệ thống phục vụ **3 đối tượng người dùng chính:**
+
+| Vai trò | Mô tả |
+|---------|-------|
+| 🧑‍💻 **Ứng viên (Candidate)** | Tìm kiếm việc làm, nộp CV, theo dõi công ty, nhận thông báo |
+| 🏢 **Nhà tuyển dụng (Employer)** | Đăng tin, quản lý ứng viên, xét duyệt hồ sơ, gửi phỏng vấn |
+| ⚙️ **Quản trị viên (Admin)** | Kiểm duyệt toàn bộ nền tảng, quản lý người dùng & nội dung |
+
+---
+
+## 🏗 Kiến Trúc Hệ Thống
+
+### Kiến trúc Tổng thể: Client – Server RESTful API
+
+```
+┌─────────────────────┐         ┌──────────────────────────────────┐
+│   Frontend (React)  │  HTTP   │        Backend (Express.js)      │
+│   Vite + Tailwind   │◄──────►│   MVC + Service Layer Pattern    │
+│   Ant Design + SPA  │  REST   │                                  │
+└─────────────────────┘         │  ┌────────┐  ┌─────────┐        │
+                                │  │ Routes  │─►│Controllers│       │
+                                │  └────────┘  └────┬──────┘       │
+                                │                   ▼              │
+                                │            ┌──────────┐          │
+                                │            │ Services  │          │
+                                │            └────┬─────┘          │
+                                │                 ▼                │
+                                │          ┌──────────┐            │
+                                │          │  Models   │            │
+                                │          │(Mongoose) │            │
+                                │          └────┬─────┘            │
+                                └───────────────┼──────────────────┘
+                                                ▼
+                                        ┌──────────────┐
+                                        │   MongoDB     │
+                                        └──────────────┘
+```
+
+- **Backend:** Mô hình **MVC mở rộng** với **Service Layer** — Controllers chỉ tiếp nhận/phản hồi HTTP, mọi Business Logic được đóng gói trong Services.
+- **Frontend:** Kiến trúc **Component-Based** của React, kết hợp **Context API** quản lý State toàn cục (Auth, Settings) và kỹ thuật phân tách UI Component tái sử dụng.
+
+---
+
+## 🎯 Thiết Kế Hướng Đối Tượng & Design Patterns
+
+Dự án áp dụng mạnh mẽ các nguyên lý **SOLID** và **4 mẫu thiết kế kinh điển GoF**:
+
+### 1. 🏛 Facade Pattern (Mẫu Mặt Tiền)
+
+> **File:** `src/patterns/facade/NotificationFacade.js`
+
+**Vấn đề:** Gửi thông báo đòi hỏi nhiều bước: tìm user → khởi tạo Sender → khởi tạo Notification → gọi Service lưu DB & gửi email.
+
+**Giải pháp:** `NotificationFacade` cung cấp các phương thức tĩnh đơn giản:
+```javascript
+// Chỉ cần 1 dòng code duy nhất
+await NotificationFacade.sendJobApprovedNotification(job, employer);
+await NotificationFacade.sendNewApplicationNotification(application, candidate, job, employer);
+await NotificationFacade.sendApplicationStatusNotification(application, job, candidate, 'INTERVIEW');
+```
+
+### 2. 🌉 Strategy / Bridge Pattern (Mẫu Cây Cầu)
+
+> **File:** `src/notifications/BaseNotification.js` + `src/notifications/senders/`
+
+**Vấn đề:** Tách biệt **nội dung thông báo** khỏi **kênh gửi** (Email, SMS, In-app).
+
+**Giải pháp:** Lớp trừu tượng `BaseNotification` chứa đối tượng `sender` (kiểu `MessageSender`). Các lớp con (`JobApprovedNotification`, `ApplicationStatusNotification`,...) chỉ cần định nghĩa nội dung, rồi gọi `this.sender.sendMessage()`. Muốn thêm kênh SMS thì chỉ cần tạo thêm `SMSSender` mà không sửa bất kỳ Notification class nào.
+
+### 3. 🔒 Singleton Pattern (Mẫu Độc Bản)
+
+> **File:** `src/services/*.js`, `src/config/database.js`
+
+**Vấn đề:** Tránh khởi tạo nhiều instance không cần thiết gây rò rỉ bộ nhớ.
+
+**Giải pháp:** Mỗi file Service export ra `export default new ServiceName()` — đảm bảo toàn bộ ứng dụng chỉ dùng đúng 1 instance duy nhất.
+
+### 4. 👁 Observer Pattern (Mẫu Quan Sát)
+
+> **File:** Tính năng **Follow Company** + `NotificationFacade.sendNewJobToFollowersNotification()`
+
+**Vấn đề:** Khi công ty đăng tin mới được duyệt, tất cả ứng viên đang theo dõi cần được thông báo.
+
+**Giải pháp:** Công ty (Subject) → Followers (Observers). Khi trạng thái thay đổi (job approved), hệ thống tự động duyệt danh sách followers và phát thông báo email + in-app cho từng người.
+
+---
+
+## 🗃 Mô Hình Cơ Sở Dữ Liệu
+
+Sử dụng **Mongoose ODM** ánh xạ các Class thành MongoDB Documents:
+
+```
+┌──────────┐     1:N      ┌──────────┐     1:N      ┌──────────────┐
+│   User   │─────────────►│ Company  │─────────────►│     Job      │
+│(Candidate│              │          │              │              │
+│ Employer │              └──────────┘              └──────┬───────┘
+│  Admin)  │                   │                           │
+└────┬─────┘                   │ M:N                       │ N:M
+     │                    ┌────┴────────┐            ┌─────┴────────┐
+     │                    │FollowCompany│            │ Application  │
+     │                    └─────────────┘            │(CV, Status)  │
+     │                                               └──────────────┘
+     │ 1:N           1:N            1:N
+  ┌──┴───┐      ┌────┴────┐    ┌────┴──────┐
+  │  CV  │      │SavedJob │    │Notification│
+  └──────┘      └─────────┘    └───────────┘
+```
+
+| Model | Mô tả | Thuộc tính chính |
+|-------|--------|------------------|
+| **User** | Người dùng (3 roles) | name, email, password (bcrypt), role, avatar, profile |
+| **Company** | Thông tin doanh nghiệp | name, logo, cover, industry, size, employer_id |
+| **Job** | Tin tuyển dụng | title, slug, description, salary, type, status, views |
+| **Application** | Đơn ứng tuyển | candidate_id, job_id, cv_id, status, cover_letter |
+| **CV** | Hồ sơ xin việc (PDF) | candidate_id, file_url, title |
+| **Category** | Danh mục ngành nghề | name, icon, icon_color, bg_color |
+| **Notification** | Thông báo hệ thống | user_id, title, message, type, is_read |
+| **FollowCompany** | Theo dõi công ty | user_id, company_id (compound unique index) |
+| **SavedJob** | Lưu tin tuyển dụng | candidate_id, job_id |
+| **Post** | Bài viết Blog | title, content, author_id, category |
+| **Setting** | Cấu hình website | site_name, logo, SEO, header_menu |
+
+---
+
+## ✨ Tính Năng Chi Tiết
+
+### 🧑‍💻 Ứng Viên (Candidate)
+- ✅ Đăng ký / Đăng nhập (JWT + Refresh Token + Cloudflare Captcha)
+- ✅ Tìm kiếm việc làm nâng cao (Full-text search, lọc lương, ngành, loại hình)
+- ✅ Xem chi tiết tin tuyển dụng (tự động đếm lượt xem)
+- ✅ Nộp hồ sơ ứng tuyển (chọn CV + thư giới thiệu)
+- ✅ Upload & quản lý CV (chỉ nhận PDF)
+- ✅ Lưu tin yêu thích
+- ✅ Theo dõi công ty → nhận thông báo khi có job mới
+- ✅ Nhận thông báo chuông + email khi trạng thái hồ sơ thay đổi
+- ✅ Dashboard thống kê cá nhân
+
+### 🏢 Nhà Tuyển Dụng (Employer)
+- ✅ Đăng ký doanh nghiệp (Xác minh OTP email)
+- ✅ Xác minh Giấy phép kinh doanh (Upload + Admin duyệt)
+- ✅ CRUD tin tuyển dụng (Rich Text Editor)
+- ✅ Quản lý ứng viên: Xem CV, đổi trạng thái (Chờ → Phỏng vấn → Chấp nhận / Từ chối)
+- ✅ Hệ thống thông báo chuông khi có ứng viên mới
+- ✅ Gửi email tự động cho ứng viên khi đổi trạng thái
+- ✅ Dashboard thống kê: Số tin đang chạy, lượt xem, số ứng viên
+- ✅ Quản lý hồ sơ công ty (Logo, Cover, Mô tả, Video YouTube)
+
+### ⚙️ Quản Trị Viên (Admin)
+- ✅ Kiểm duyệt Công ty & Tin tuyển dụng (PENDING → APPROVED / REJECTED)
+- ✅ Quản lý toàn bộ User (CRUD, Ban/Unban)
+- ✅ Quản lý danh mục ngành nghề
+- ✅ Quản lý Blog & Bài viết (CMS tích hợp)
+- ✅ Tùy chỉnh giao diện Website (Logo, Banner, Menu, SEO)
+- ✅ Cấu hình hệ thống (Settings)
+- ✅ Dashboard tổng quan với biểu đồ thống kê (Recharts)
+
+### 🔔 Hệ Thống Thông Báo (Notification System)
+- ✅ **Khi ứng viên nộp hồ sơ:** Nhà tuyển dụng nhận thông báo chuông + email
+- ✅ **Khi NTD đổi trạng thái:** Ứng viên nhận thông báo chuông + email
+- ✅ **Khi job được duyệt:** Nhà tuyển dụng nhận thông báo
+- ✅ **Khi job mới ở công ty đang follow:** Ứng viên nhận email
+- ✅ **Khi công ty được duyệt:** Nhà tuyển dụng nhận thông báo
+
+---
+
+## 🛠 Công Nghệ Sử Dụng
 
 ### Backend
-- **Node.js** & **Express.js** (RESTful API).
-- **MongoDB** & **Mongoose** (Database & ODM).
-- **Security:** `bcryptjs`, `jsonwebtoken`, `helmet`, `cors`.
-- **Upload File:** `multer`, `cloudinary` API (Lưu trữ ảnh mây).
-- **Email:** `nodemailer` (SMTP).
+| Công nghệ | Phiên bản | Mục đích |
+|-----------|-----------|----------|
+| Node.js | v18+ | Runtime JavaScript |
+| Express.js | v5.x | RESTful API Framework |
+| MongoDB | v7+ | NoSQL Database |
+| Mongoose | v9.x | ODM (Object Document Mapping) |
+| JWT | v9.x | Authentication & Authorization |
+| Bcrypt.js | v3.x | Mã hóa mật khẩu |
+| Nodemailer | v9.x | Gửi email SMTP |
+| Multer | v2.x | Upload file |
+| Sharp | v0.35 | Xử lý & tối ưu hình ảnh |
+| Helmet | v8.x | Bảo mật HTTP headers |
+| Morgan | v1.x | Logging HTTP requests |
 
 ### Frontend
-- **React.js 19** & **Vite** (Giao diện siêu tốc).
-- **UI Frameworks:** **Tailwind CSS** (Utility-first CSS) & **Ant Design** (Enterprise-level UI Components).
-- **HTTP Client:** `axios` (với Interceptors tự động đính kèm Token).
-- **Routing:** `react-router-dom` v6.
+| Công nghệ | Phiên bản | Mục đích |
+|-----------|-----------|----------|
+| React.js | v19.x | UI Library |
+| Vite | v8.x | Build Tool (HMR siêu nhanh) |
+| Tailwind CSS | v4.x | Utility-first CSS Framework |
+| Ant Design | v6.x | Enterprise UI Components |
+| React Router | v6.x | Client-side Routing (SPA) |
+| Recharts | v3.x | Biểu đồ thống kê Dashboard |
+| React Quill | v3.x | Rich Text Editor (WYSIWYG) |
+| React Helmet | v3.x | SEO Management |
 
 ---
 
-## 5. Hướng Dẫn Cài Đặt (Local Development)
+## 📁 Cấu Trúc Thư Mục
+
+```
+VinJobs/
+├── backend-vinjobs/
+│   ├── app.js                    # Express app configuration
+│   ├── server.js                 # Entry point
+│   ├── seed.js                   # Database seeder (demo data)
+│   └── src/
+│       ├── config/               # Database connection (Singleton)
+│       ├── controllers/          # HTTP Request handlers
+│       ├── facades/              # RecruitmentFacade
+│       ├── middlewares/          # Auth, Error, Upload middlewares
+│       ├── models/               # Mongoose schemas (11 models)
+│       ├── notifications/
+│       │   ├── BaseNotification.js
+│       │   ├── senders/          # EmailSender (Bridge Pattern)
+│       │   └── types/            # 8 notification types
+│       ├── patterns/
+│       │   └── facade/           # NotificationFacade
+│       ├── routes/               # API route definitions
+│       ├── services/             # Business logic layer
+│       └── utils/                # AppError, helpers
+│
+├── frontend-vinjobs/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── auth/             # RouteGuards (Protected, Role, Guest)
+│   │   │   ├── layout/           # Header, Footer, Sidebar, DashboardLayout
+│   │   │   └── ui/               # Reusable UI components
+│   │   ├── contexts/             # AuthContext, SettingsContext
+│   │   ├── hooks/                # Custom hooks (useProvinces)
+│   │   ├── lib/                  # API client (Axios + Interceptors)
+│   │   ├── pages/
+│   │   │   ├── admin/            # Admin dashboard pages
+│   │   │   ├── auth/             # Login, Register, ForgotPassword
+│   │   │   ├── candidate/        # Candidate dashboard pages
+│   │   │   ├── employer/         # Employer dashboard pages
+│   │   │   └── public/           # Home, Jobs, Companies, Blog, FAQ
+│   │   ├── services/             # ImageUpload, Location services
+│   │   ├── App.jsx               # Root component + Routing
+│   │   └── main.jsx              # Entry point
+│   └── public/                   # Static assets
+│
+└── README.md
+```
+
+---
+
+## 🚀 Hướng Dẫn Cài Đặt
 
 ### Yêu Cầu Môi Trường
-- **Node.js** (v18+)
-- **MongoDB** (Local / MongoDB Atlas)
+- **Node.js** v18 trở lên
+- **MongoDB** (Local hoặc MongoDB Atlas)
+- **npm** hoặc **yarn**
 
-### Bước 1: Khởi chạy Backend
-1. Chuyển thư mục: `cd backend-vinjobs`
-2. Cài đặt thư viện: `npm install`
-3. Tạo file `.env` và thiết lập các biến môi trường:
-   ```env
-   PORT=5000
-   DATABASE_URL=mongodb://localhost:27017/vinjobs
-   JWT_SECRET=your_jwt_secret
-   CLIENT_URL=http://localhost:5173
-   EMAIL_USER=your_email@gmail.com
-   EMAIL_PASS=your_app_password
-   ```
-4. Khởi động: `npm run dev` (Server chạy tại port 5000)
+### Bước 1: Clone Repository
 
-### Bước 2: Khởi chạy Frontend
-1. Chuyển thư mục: `cd frontend-vinjobs`
-2. Cài đặt thư viện: `npm install`
-3. Cấu hình `.env` nếu cần (Ví dụ: `VITE_API_URL=http://localhost:5000/api/v1`)
-4. Khởi động giao diện: `npm run dev` (Website chạy tại `http://localhost:5173`)
+```bash
+git clone https://github.com/phamkhoa18/vinjobs.git
+cd vinjobs
+```
+
+### Bước 2: Cài Đặt & Khởi Chạy Backend
+
+```bash
+cd backend-vinjobs
+npm install
+```
+
+Tạo file `.env` với nội dung:
+
+```env
+PORT=5000
+DATABASE_URL=mongodb://localhost:27017/vinjobs
+JWT_SECRET=your_jwt_secret_key_here
+JWT_REFRESH_SECRET=your_refresh_secret_key_here
+CLIENT_URL=http://localhost:5173
+
+# Email (SMTP Gmail)
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_gmail_app_password
+```
+
+Khởi chạy server:
+
+```bash
+npm run dev
+```
+
+> Server chạy tại `http://localhost:5000`
+
+### Bước 3: Seed Dữ Liệu Demo (Tùy chọn)
+
+```bash
+node seed.js
+```
+
+> Tự động tạo: 14 danh mục, 15 nhà tuyển dụng, 20 ứng viên, 15 công ty, ~90 tin tuyển dụng kèm ảnh thật.
+
+### Bước 4: Cài Đặt & Khởi Chạy Frontend
+
+```bash
+cd ../frontend-vinjobs
+npm install
+npm run dev
+```
+
+> Website chạy tại `http://localhost:5173`
 
 ---
-*Dự án được xây dựng tập trung vào kiến trúc Phần Mềm Hướng Đối Tượng mạnh mẽ, đảm bảo tính đóng gói, kế thừa và đa hình chặt chẽ giữa các thành phần.*
+
+## 🔑 Tài Khoản Demo
+
+Sau khi chạy `seed.js`, bạn có thể đăng nhập với các tài khoản sau:
+
+### Nhà Tuyển Dụng
+
+| Email | Mật khẩu |
+|-------|----------|
+| employer1@vinjobs.com | password123 |
+| employer2@vinjobs.com | password123 |
+| ... đến employer15@vinjobs.com | password123 |
+
+### Ứng Viên
+
+| Email | Mật khẩu |
+|-------|----------|
+| candidate1@vinjobs.com | password123 |
+| candidate2@vinjobs.com | password123 |
+| ... đến candidate20@vinjobs.com | password123 |
+
+### Admin
+> Tài khoản Admin được tạo riêng, không nằm trong seed.
+
+---
+
+## 📡 API Endpoints
+
+### Authentication
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| POST | `/api/v1/auth/register` | Đăng ký tài khoản |
+| POST | `/api/v1/auth/login` | Đăng nhập |
+| POST | `/api/v1/auth/verify-email` | Xác thực OTP email |
+| POST | `/api/v1/auth/refresh-token` | Làm mới access token |
+
+### Jobs
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/api/v1/jobs` | Tìm kiếm việc làm |
+| GET | `/api/v1/jobs/:id` | Chi tiết tin tuyển dụng |
+| GET | `/api/v1/jobs/categories` | Danh mục ngành nghề |
+| POST | `/api/v1/jobs` | Đăng tin (Employer) |
+| PATCH | `/api/v1/jobs/:id` | Cập nhật tin |
+| DELETE | `/api/v1/jobs/:id` | Xóa tin |
+
+### Applications
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| POST | `/api/v1/applications` | Nộp hồ sơ ứng tuyển |
+| GET | `/api/v1/applications/me` | Lịch sử ứng tuyển (Candidate) |
+| GET | `/api/v1/applications/employer/all` | Danh sách ứng viên (Employer) |
+| PATCH | `/api/v1/applications/:id/status` | Đổi trạng thái hồ sơ |
+
+### Companies
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/api/v1/companies` | Danh sách công ty |
+| GET | `/api/v1/companies/top` | Top công ty nổi bật |
+| POST | `/api/v1/companies/:id/follow` | Theo dõi công ty |
+
+### Users & Notifications
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/api/v1/users/me` | Thông tin cá nhân |
+| GET | `/api/v1/users/me/notifications` | Danh sách thông báo |
+| PATCH | `/api/v1/users/me/notifications/read-all` | Đánh dấu đã đọc |
+
+---
+
+## 📝 Ghi Chú
+
+- Tất cả tính năng trên VinJobs đều **hoàn toàn miễn phí** cho cả ứng viên và nhà tuyển dụng.
+- Hệ thống sử dụng **JWT** với cơ chế **Access Token + Refresh Token** (httpOnly Cookie) để bảo mật.
+- Upload ảnh sử dụng **Sharp** để tối ưu hóa (nén WebP) trước khi lưu trữ.
+- Upload CV chỉ chấp nhận file **PDF**.
+- Mọi Công ty và Tin tuyển dụng phải qua bước **kiểm duyệt Admin** trước khi hiển thị công khai.
+
+---
+
+<div align="center">
+
+*Dự án được xây dựng tập trung vào kiến trúc Phần Mềm Hướng Đối Tượng, đảm bảo tính đóng gói (Encapsulation), kế thừa (Inheritance) và đa hình (Polymorphism) chặt chẽ giữa các thành phần.*
+
+**© 2026 VinJobs — All Rights Reserved**
+
+</div>
