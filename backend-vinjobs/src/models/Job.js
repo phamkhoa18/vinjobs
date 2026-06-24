@@ -145,6 +145,10 @@ const jobSchema = new mongoose.Schema(
     deadline: {
       type: Date,
     },
+    views: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

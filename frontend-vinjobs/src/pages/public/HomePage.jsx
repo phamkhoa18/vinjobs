@@ -140,7 +140,7 @@ function HeroSearch({ topCategories = [] }) {
 
       {/* ═══ Main bar — clone ViecLamTot 100% ═══ */}
       <form onSubmit={handleSubmit}
-        className="flex flex-col lg:flex-row items-stretch lg:items-center bg-white rounded-2xl lg:rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] lg:shadow-[0_4px_24px_rgba(0,0,0,0.16)] relative overflow-visible p-2 lg:p-0 gap-2 lg:gap-0"
+        className="flex flex-col lg:flex-row items-stretch lg:items-center bg-white rounded-2xl lg:rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] lg:shadow-[0_4px_24px_rgba(0,0,0,0.16)] relative z-20 overflow-visible p-2 lg:p-0 gap-2 lg:gap-0"
       >
         {/* ── Keyword input ── */}
         <div className="relative flex-1 flex items-center gap-2.5 px-4 h-[52px] lg:h-[56px] bg-[#f9fafb] lg:bg-transparent rounded-xl lg:rounded-none min-w-0">
@@ -166,7 +166,7 @@ function HeroSearch({ topCategories = [] }) {
 
           {/* Suggestions Dropdown */}
           {showSugg && (
-            <div className="absolute left-0 right-0 top-[calc(100%+8px)] bg-white rounded-2xl shadow-[0_8px_48px_rgba(0,0,0,0.15)] border border-[#e5e7eb] z-[400] overflow-hidden">
+            <div className="absolute left-0 right-0 top-[calc(100%+8px)] bg-white rounded-2xl shadow-[0_8px_48px_rgba(0,0,0,0.15)] border border-[#e5e7eb] z-[500] overflow-hidden">
               {!query ? (
                 <div className="p-3">
                   <p className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-wider px-2 mb-2">🔥 Từ khoá phổ biến</p>
@@ -259,7 +259,7 @@ function HeroSearch({ topCategories = [] }) {
             </button>
 
             {showLoc && (
-              <div className="absolute left-0 lg:left-0 top-[calc(100%+8px)] bg-white rounded-2xl shadow-[0_8px_48px_rgba(0,0,0,0.15)] border border-[#e5e7eb] z-[400] overflow-hidden w-[calc(100vw-32px)] max-w-[320px] lg:w-auto lg:min-w-[280px]">
+              <div className="absolute left-0 lg:left-0 top-[calc(100%+8px)] bg-white rounded-2xl shadow-[0_8px_48px_rgba(0,0,0,0.15)] border border-[#e5e7eb] z-[500] overflow-hidden w-[calc(100vw-32px)] max-w-[320px] lg:w-auto lg:min-w-[280px]">
                 <div className="p-3 border-b border-[#f3f4f6]">
                   <div className="flex items-center gap-2 bg-[#f9fafb] rounded-xl px-3 py-2">
                     <span className="mi text-[18px] text-[#9ca3af]">search</span>
@@ -335,7 +335,7 @@ function HeroSearch({ topCategories = [] }) {
             </button>
 
             {showInd && (
-              <div className="absolute right-0 lg:right-0 top-[calc(100%+8px)] bg-white rounded-2xl shadow-[0_8px_48px_rgba(0,0,0,0.15)] border border-[#e5e7eb] z-[400] overflow-hidden w-[calc(100vw-32px)] max-w-[320px] lg:w-auto lg:min-w-[300px]">
+              <div className="absolute right-0 lg:right-0 top-[calc(100%+8px)] bg-white rounded-2xl shadow-[0_8px_48px_rgba(0,0,0,0.15)] border border-[#e5e7eb] z-[500] overflow-hidden w-[calc(100vw-32px)] max-w-[320px] lg:w-auto lg:min-w-[300px]">
                 <div className="p-3 border-b border-[#f3f4f6]">
                   <div className="flex items-center gap-2 bg-[#f9fafb] rounded-xl px-3 py-2">
                     <span className="mi text-[18px] text-[#9ca3af]">search</span>

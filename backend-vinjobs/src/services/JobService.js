@@ -27,7 +27,7 @@ class JobService {
     const isValidId = mongoose.Types.ObjectId.isValid(jobId);
     const query = isValidId ? { $or: [{ _id: jobId }, { slug: jobId }] } : { slug: jobId };
     
-    const job = await Job.findOne(query)
+    const job = await Job.findOneAndUpdate(query, { $inc: { views: 1 } }, { new: true })
       .populate('category_id', 'name slug icon icon_color bg_color')
       .populate('company_id', 'name logo')
       .populate('employer_id', 'name email phone avatar');

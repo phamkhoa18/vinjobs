@@ -21,6 +21,19 @@ class ApplicationService {
     });
 
     await application.save();
+    
+    try {
+      const User = (await import('../models/User.js')).default;
+      const candidateUser = await User.findById(candidateId);
+      const employerUser = await User.findById(job.employer_id);
+      if (candidateUser && employerUser) {
+        const NotificationFacade = (await import('../patterns/facade/NotificationFacade.js')).default;
+        await NotificationFacade.sendNewApplicationNotification(application, candidateUser, job, employerUser);
+      }
+    } catch (err) {
+      console.error('Error sending application notification:', err);
+    }
+
     return application;
   }
 
@@ -88,6 +101,19 @@ class ApplicationService {
 
     application.status = status;
     await application.save();
+
+    try {
+      const User = (await import('../models/User.js')).default;
+      const job = await Job.findById(application.job_id);
+      const candidateUser = await User.findById(application.candidate_id);
+      if (job && candidateUser) {
+        const NotificationFacade = (await import('../patterns/facade/NotificationFacade.js')).default;
+        await NotificationFacade.sendApplicationStatusNotification(application, job, candidateUser, status);
+      }
+    } catch (err) {
+      console.error('Error sending application status notification:', err);
+    }
+
     return application;
   }
 }

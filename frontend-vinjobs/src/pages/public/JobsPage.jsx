@@ -72,8 +72,9 @@ function getSalaryAvg(salary) {
 /* ──────────────────────────────────────────────────────────────
    FILTER DROPDOWN
 ────────────────────────────────────────────────────────────── */
-function FilterDropdown({ label, options, value, onChange, multi = false }) {
+function FilterDropdown({ label, options, value, onChange, multi = false, searchable = false }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const ref = useRef(null);
 
   useEffect(() => {
@@ -82,10 +83,18 @@ function FilterDropdown({ label, options, value, onChange, multi = false }) {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  useEffect(() => {
+    if (!open) setSearch('');
+  }, [open]);
+
   const isActive = multi ? value.length > 0 : (value && value !== 'all');
   const displayLabel = multi
     ? (value.length > 0 ? `${label} (${value.length})` : label)
     : (options.find(o => o.id === value)?.label || label);
+
+  const filteredOptions = searchable 
+    ? options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+    : options;
 
   return (
     <div ref={ref} className="relative">
@@ -93,7 +102,7 @@ function FilterDropdown({ label, options, value, onChange, multi = false }) {
         onClick={() => setOpen(v => !v)}
         className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-[13px] font-medium transition-all whitespace-nowrap shrink-0
           ${isActive
-            ? 'bg-primary border-primary text-white'
+            ? 'bg-blue-50 border-primary text-primary'
             : 'bg-white border-[#e5e7eb] text-[#374151] hover:border-primary hover:text-primary'
           }`}
       >
@@ -102,28 +111,47 @@ function FilterDropdown({ label, options, value, onChange, multi = false }) {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-[calc(100%+4px)] min-w-[200px] bg-white rounded-xl  shadow-xl z-[300] py-1.5 overflow-hidden">
-          {multi
-            ? options.map(opt => (
-              <label key={opt.id} className="flex items-center gap-2.5 px-4 py-2 hover:bg-[#f9fafb] cursor-pointer">
-                <div className={`w-[16px] h-[16px] rounded border-2 flex items-center justify-center shrink-0 transition-all
-                    ${value.includes(opt.id) ? 'bg-primary border-primary' : 'border-[#d1d5db]'}`}>
-                  {value.includes(opt.id) && <span className="mi text-[10px] text-white leading-none">check</span>}
+        <div className="absolute left-0 top-[calc(100%+8px)] min-w-[240px] max-w-[300px] bg-white rounded-xl shadow-[0_8px_48px_rgba(0,0,0,0.15)] border border-[#e5e7eb] z-[500] overflow-hidden flex flex-col">
+          {searchable && (
+            <div className="p-2 border-b border-[#f3f4f6]">
+              <div className="flex items-center gap-2 bg-[#f9fafb] rounded-lg px-3 py-1.5">
+                <span className="mi text-[16px] text-[#9ca3af]">search</span>
+                <input 
+                  type="text" 
+                  placeholder="Tìm kiếm..." 
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="flex-1 bg-transparent text-[13px] border-none outline-none text-[#111827] placeholder:text-[#9ca3af]"
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+          
+          <div className="max-h-[280px] overflow-y-auto py-1">
+            {filteredOptions.length === 0 ? (
+              <div className="px-4 py-3 text-[13px] text-center text-[#9ca3af]">Không có dữ liệu</div>
+            ) : multi ? filteredOptions.map(opt => (
+              <label key={opt.id} className="flex items-start gap-2.5 px-4 py-2 hover:bg-[#f9fafb] cursor-pointer group">
+                <div className={`mt-0.5 w-[16px] h-[16px] rounded border flex items-center justify-center shrink-0 transition-all
+                    ${value.includes(opt.id) ? 'bg-primary border-primary' : 'border-[#d1d5db] group-hover:border-primary'}`}>
+                  {value.includes(opt.id) && <span className="mi text-[12px] text-white leading-none font-bold">check</span>}
                 </div>
-                <span className={`text-[13px] ${value.includes(opt.id) ? 'text-primary font-semibold' : 'text-[#374151]'}`}>{opt.label}</span>
+                <span className={`text-[13px] leading-snug flex-1 ${value.includes(opt.id) ? 'text-primary font-semibold' : 'text-[#374151]'}`}>{opt.label}</span>
               </label>
-            ))
-            : options.map(opt => (
+            )) : filteredOptions.map(opt => (
               <button key={opt.id} onClick={() => { onChange(opt.id); setOpen(false); }}
-                className={`w-full text-left px-4 py-2 text-[13px] hover:bg-[#f9fafb] transition-colors
-                    ${opt.id === value ? 'text-primary font-semibold' : 'text-[#374151]'}`}>
+                className={`w-full text-left px-4 py-2.5 text-[13px] hover:bg-[#f9fafb] transition-colors
+                    ${opt.id === value ? 'text-primary font-semibold bg-blue-50/50' : 'text-[#374151]'}`}>
                 {opt.label}
               </button>
-            ))
-          }
+            ))}
+          </div>
+
           {multi && value.length > 0 && (
-            <div className="border-t border-[#f3f4f6] mt-1 pt-1.5 pb-1 px-4">
-              <button onClick={() => onChange([])} className="text-[12px] text-red-500 hover:underline">Xoá chọn</button>
+            <div className="border-t border-[#f3f4f6] p-2 flex justify-between items-center bg-[#f9fafb]">
+              <span className="text-[12px] text-[#6b7280]">Đã chọn {value.length}</span>
+              <button onClick={() => onChange([])} className="text-[12px] font-medium text-red-500 hover:text-red-600 transition-colors">Bỏ chọn</button>
             </div>
           )}
         </div>
@@ -131,6 +159,7 @@ function FilterDropdown({ label, options, value, onChange, multi = false }) {
     </div>
   );
 }
+
 
 /* ══════════════════════════════════════════════════════════════
    MAIN PAGE
@@ -142,12 +171,12 @@ export default function JobsPage() {
   const [localQuery, setLocalQuery] = useState(searchParams.get('q') || '');
   const [query, setQuery] = useState(searchParams.get('q') || '');
   const [provinceCode, setProvinceCode] = useState(searchParams.get('province') || '');
-  const [categoryIds, setCategoryIds] = useState([]);
-  const [salaryId, setSalaryId] = useState('all');
-  const [jobTypes, setJobTypes] = useState([]);
-  const [jobLevels, setJobLevels] = useState([]);
-  const [hotOnly, setHotOnly] = useState(false);
-  const [sortBy, setSortBy] = useState('newest');
+  const [categoryIds, setCategoryIds] = useState(searchParams.get('category_id') ? searchParams.get('category_id').split(',') : []);
+  const [salaryId, setSalaryId] = useState(searchParams.get('salary') || 'all');
+  const [jobTypes, setJobTypes] = useState(searchParams.get('type') ? searchParams.get('type').split(',') : []);
+  const [jobLevels, setJobLevels] = useState(searchParams.get('level') ? searchParams.get('level').split(',') : []);
+  const [hotOnly, setHotOnly] = useState(searchParams.get('hot') === 'true');
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
   const [activeTab, setActiveTab] = useState('all');
   const [descExpanded, setDescExpanded] = useState(false);
   const [categoriesList, setCategoriesList] = useState([]);
@@ -172,6 +201,32 @@ export default function JobsPage() {
     }, 500);
     return () => clearTimeout(timer);
   }, [localQuery]);
+
+  // Sync state changes to URL Search Params
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    let changed = false;
+    
+    const updateParam = (key, val) => {
+      if (params.get(key) !== val) {
+        if (val) params.set(key, val); else params.delete(key);
+        changed = true;
+      }
+    };
+
+    updateParam('q', query);
+    updateParam('province', provinceCode);
+    updateParam('category_id', categoryIds.length > 0 ? categoryIds.join(',') : '');
+    updateParam('salary', salaryId && salaryId !== 'all' ? salaryId : '');
+    updateParam('type', jobTypes.length > 0 ? jobTypes.join(',') : '');
+    updateParam('level', jobLevels.length > 0 ? jobLevels.join(',') : '');
+    updateParam('hot', hotOnly ? 'true' : '');
+    updateParam('sort', sortBy && sortBy !== 'newest' ? sortBy : '');
+    
+    if (changed) {
+      setSearchParams(params, { replace: true });
+    }
+  }, [query, provinceCode, categoryIds, salaryId, jobTypes, jobLevels, hotOnly, sortBy]);
 
   // Fetch jobs from backend
   useEffect(() => {
@@ -229,7 +284,7 @@ export default function JobsPage() {
     setQuery(''); setLocalQuery('');
     setProvinceCode(''); setCategoryIds([]);
     setSalaryId('all'); setJobTypes([]); setJobLevels([]);
-    setHotOnly(false);
+    setHotOnly(false); setSortBy('newest');
     setSearchParams({}, { replace: true });
   }, [setSearchParams]);
 
@@ -310,9 +365,10 @@ export default function JobsPage() {
               )}
             </button>
 
-            <FilterDropdown label="Ngành nghề" options={categoriesList.map(c => ({ id: String(c._id), label: c.name }))} value={categoryIds} onChange={setCategoryIds} multi />
+            <FilterDropdown label="Ngành nghề" options={categoriesList.map(c => ({ id: String(c._id), label: c.name }))} value={categoryIds} onChange={setCategoryIds} multi searchable />
             <FilterDropdown label="Lương" options={SALARY_RANGES} value={salaryId} onChange={setSalaryId} />
             <FilterDropdown label="Loại công việc" options={JOB_TYPES} value={jobTypes} onChange={setJobTypes} multi />
+            <FilterDropdown label="Cấp bậc" options={JOB_LEVELS} value={jobLevels} onChange={setJobLevels} multi />
 
             {/* Việc tuyển gấp — no arrow */}
             <button

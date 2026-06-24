@@ -25,9 +25,16 @@ router.use(protect);
 
 // GET /api/v1/jobs/employer/mine - Get employer's own jobs
 router.get('/employer/mine', restrictTo('EMPLOYER'), asyncHandler(async (req, res) => {
-  const jobs = await Job.find({ employer_id: req.user.id })
+  const Application = (await import('../models/Application.js')).default;
+  const jobsRaw = await Job.find({ employer_id: req.user.id })
     .populate('company_id', 'name logo')
-    .sort('-createdAt');
+    .sort('-createdAt')
+    .lean();
+
+  const jobs = await Promise.all(jobsRaw.map(async (job) => {
+    const applicantsCount = await Application.countDocuments({ job_id: job._id });
+    return { ...job, applicantsCount };
+  }));
 
   res.status(200).json({
     status: 'success',

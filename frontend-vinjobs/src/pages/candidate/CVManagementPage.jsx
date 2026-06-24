@@ -86,28 +86,32 @@ export default function CVManagementPage() {
           const saveRes = await cvApi.uploadCV({
             title: file.name,
             file_path: filePath,
-            file_type: file.name.split('.').pop().toUpperCase()
+            file_type: 'PDF' // Fix cứng là PDF vì chỉ cho phép upload PDF
           });
           
           if (saveRes.status === 'success') {
             toast.success('Upload CV thành công');
             fetchCVs();
             onSuccess(saveRes.data, file);
+          } else {
+             throw new Error(saveRes.message || 'Lỗi khi lưu CV');
           }
+        } else {
+           throw new Error(uploadRes.message || 'Lỗi khi tải file lên');
         }
       } catch (error) {
-        toast.error('Lỗi khi upload CV');
+        toast.error(error.message || 'Lỗi khi upload CV');
         onError(error);
       } finally {
         setUploading(false);
       }
     },
     beforeUpload: (file) => {
-      const isPdfOrWord = file.type === 'application/pdf' || file.type === 'application/msword' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      if (!isPdfOrWord) {
-        toast.error('Chỉ hỗ trợ file PDF, DOC, DOCX');
+      const isPdf = file.type === 'application/pdf';
+      if (!isPdf) {
+        toast.error('Chỉ hỗ trợ định dạng file PDF');
       }
-      return isPdfOrWord || Upload.LIST_IGNORE;
+      return isPdf || Upload.LIST_IGNORE;
     }
   };
 
@@ -135,7 +139,7 @@ export default function CVManagementPage() {
             </p>
             <p className="ant-upload-text">Nhấp hoặc kéo thả file vào khu vực này để upload</p>
             <p className="ant-upload-hint">
-              Hỗ trợ tải lên file PDF, DOC, DOCX. Dung lượng tối đa 5MB.
+              Chỉ hỗ trợ định dạng file PDF. Dung lượng tối đa 5MB.
             </p>
           </Dragger>
         </Spin>

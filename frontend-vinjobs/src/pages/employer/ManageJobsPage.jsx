@@ -86,10 +86,10 @@ export default function ManageJobsPage() {
     {
       title: 'Thống kê',
       key: 'metrics',
-      render: () => (
+      render: (_, record) => (
         <div className="flex gap-4 text-center">
-          <div><Text strong className="text-blue-600">0</Text><br/><Text type="secondary" className="text-[10px]">Ứng viên</Text></div>
-          <div><Text strong className="text-gray-700">0</Text><br/><Text type="secondary" className="text-[10px]">Lượt xem</Text></div>
+          <div><Text strong className="text-blue-600">{record.applicantsCount || 0}</Text><br/><Text type="secondary" className="text-[10px]">Ứng viên</Text></div>
+          <div><Text strong className="text-gray-700">{record.views || 0}</Text><br/><Text type="secondary" className="text-[10px]">Lượt xem</Text></div>
         </div>
       )
     },

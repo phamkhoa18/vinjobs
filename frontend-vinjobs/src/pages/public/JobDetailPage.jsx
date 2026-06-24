@@ -92,7 +92,7 @@ export default function JobDetailPage() {
 
           if (user?.role === 'CANDIDATE') {
             try {
-              const appRes = await applicationsApi.checkApplied(id);
+              const appRes = await applicationsApi.checkApplied(currentJob._id || currentJob.id);
               if (appRes.status === 'success' && appRes.data?.applied) {
                 setHasApplied(true);
               }
@@ -227,7 +227,7 @@ export default function JobDetailPage() {
         }
       }
 
-      const res = await applicationsApi.apply(id, finalCvId, coverLetter);
+      const res = await applicationsApi.apply(job?._id || job?.id || id, finalCvId, coverLetter);
       if (res.status === 'success') {
         toast.success('Ứng tuyển thành công!');
         setHasApplied(true);
@@ -598,134 +598,189 @@ export default function JobDetailPage() {
       </div>
       {/* Apply Modal */}
       {showApplyModal && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-[500px] overflow-hidden">
-            <div className="p-4 border-b border-[#e5e7eb] flex items-center justify-between">
-              <h3 className="text-[16px] font-bold text-[#111827]">Thông tin ứng tuyển</h3>
-              <button onClick={() => setShowApplyModal(false)} className="text-[#9ca3af] hover:text-[#111827] transition-colors">
-                <span className="mi text-[24px]">close</span>
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[850px] overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-5 md:p-6 border-b border-[#e5e7eb] flex items-center justify-between bg-white shrink-0 relative overflow-hidden">
+              <div className="relative z-10">
+                <h3 className="text-[18px] md:text-[20px] font-bold text-[#111827] pr-8">Ứng tuyển: {job?.title}</h3>
+                <p className="text-[13px] text-[#6b7280] mt-1 flex items-center gap-1.5">
+                  <span className="mi text-[16px]">business</span> {job?.company_id?.name}
+                </p>
+              </div>
+              <button onClick={() => setShowApplyModal(false)} className="absolute top-5 right-5 text-[#9ca3af] hover:text-[#111827] bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors z-10">
+                <span className="mi text-[20px]">close</span>
               </button>
             </div>
             
-            <div className="p-5 bg-[#f9f9f9]">
-              <h4 className="text-[14px] font-bold text-[#333] mb-3">Thông tin cá nhân</h4>
-              <div className="bg-white rounded-lg border border-[#e5e7eb] p-4 space-y-4">
-                <div>
-                  <div className="text-[14px] font-bold text-[#111]">{user?.name || user?.full_name || 'Tên người dùng'}</div>
-                  <div className="text-[12px] text-[#666]">Họ và tên</div>
-                </div>
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto bg-[#f9fafb] p-5 md:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 
-                <div className="flex items-start justify-between gap-4">
+                {/* ── CỘT TRÁI: Thông tin cá nhân & Thư giới thiệu ── */}
+                <div className="space-y-6">
                   <div>
-                    <div className="text-[14px] font-bold text-[#111]">
-                      {user?.phone || 'Chưa cập nhật'}
-                      <span className={`ml-2 text-[12px] font-normal ${user?.status === 'ACTIVE' ? 'text-[#16a34a]' : 'text-[#ef4444]'}`}>
-                        ({user?.status === 'ACTIVE' ? 'Đã xác thực' : 'Chưa xác thực'})
-                      </span>
+                    <h4 className="text-[14px] font-bold text-[#111827] mb-3 flex items-center gap-1.5">
+                      <span className="mi text-primary">person</span> Thông tin liên hệ
+                    </h4>
+                    <div className="bg-white rounded-xl border border-[#e5e7eb] p-4 shadow-sm hover:border-primary/30 transition-colors">
+                      <div className="mb-3 pb-3 border-b border-gray-100">
+                        <div className="text-[15px] font-bold text-[#111827]">{user?.name || user?.full_name || 'Tên người dùng'}</div>
+                        <div className="text-[12px] text-[#6b7280] mt-0.5">Họ và tên</div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <div className="text-[15px] font-bold text-[#111827]">
+                            {user?.phone || 'Chưa cập nhật'}
+                            <span className={`ml-2 inline-flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-md font-semibold ${user?.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {user?.status === 'ACTIVE' ? <><span className="mi text-[12px]">verified</span> Đã xác thực</> : 'Chưa xác thực'}
+                            </span>
+                          </div>
+                          <div className="text-[12px] text-[#6b7280] mt-0.5">Số điện thoại</div>
+                        </div>
+                        {user?.status !== 'ACTIVE' && (
+                          <button onClick={() => toast.info('Vui lòng vào trang cá nhân để xác thực số điện thoại')} className="px-3 py-1.5 border border-[#ef4444] text-[#ef4444] text-[12px] font-semibold rounded-lg hover:bg-[#fff5f5] transition-colors shrink-0">
+                            Xác thực
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-[12px] text-[#666]">Số điện thoại</div>
-                    {user?.status !== 'ACTIVE' && (
-                      <div className="text-[12px] text-[#ef4444] mt-0.5">Vui lòng xác thực số điện thoại</div>
-                    )}
                   </div>
-                  {user?.status !== 'ACTIVE' && (
-                    <button onClick={() => toast.info('Vui lòng vào trang cá nhân để xác thực số điện thoại')} className="px-3 py-1.5 border border-[#ef4444] text-[#ef4444] text-[12px] font-semibold rounded-lg hover:bg-[#fff5f5] transition-colors shrink-0">
-                      Xác thực
-                    </button>
-                  )}
-                </div>
-              </div>
 
-              <div className="mt-4">
-                <h4 className="text-[14px] font-bold text-[#333] mb-3">Hồ sơ đính kèm (CV)</h4>
-                <div className="bg-white rounded-lg border border-[#e5e7eb] overflow-hidden">
-                  {myCvs.length > 0 && (
-                    <label className={`flex items-start gap-3 p-4 cursor-pointer transition-colors ${useExistingCv ? 'bg-[#f0fdf4]' : 'hover:bg-gray-50'}`}>
-                      <input 
-                        type="radio" 
-                        name="cvOption" 
-                        checked={useExistingCv} 
-                        onChange={() => setUseExistingCv(true)}
-                        className="mt-1 text-primary focus:ring-primary"
-                      />
+                  <div>
+                    <h4 className="text-[14px] font-bold text-[#111827] mb-3 flex items-center gap-1.5">
+                      <span className="mi text-primary">edit_document</span> Thư giới thiệu
+                      <span className="text-[12px] font-normal text-[#6b7280] ml-1">(Không bắt buộc)</span>
+                    </h4>
+                    <textarea
+                      rows="4"
+                      value={coverLetter}
+                      onChange={(e) => setCoverLetter(e.target.value)}
+                      placeholder="Viết vài dòng giới thiệu về bản thân và lý do bạn phù hợp với công việc này. Những ứng viên có thư giới thiệu thường được nhà tuyển dụng chú ý hơn."
+                      className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-3 text-[14px] text-[#111827] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all resize-none shadow-sm placeholder:text-[#9ca3af]"
+                    />
+                  </div>
+                </div>
+
+                {/* ── CỘT PHẢI: Hồ sơ đính kèm (CV) ── */}
+                <div className="space-y-3">
+                  <h4 className="text-[14px] font-bold text-[#111827] flex items-center gap-1.5">
+                    <span className="mi text-primary">contact_page</span> Hồ sơ đính kèm (CV)
+                  </h4>
+                  <div className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden shadow-sm">
+                    
+                    {/* Option 1: Dùng CV đã lưu */}
+                    {myCvs.length > 0 && (
+                      <label className={`flex items-start gap-3 p-4 cursor-pointer transition-all ${useExistingCv ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}>
+                        <div className="relative flex items-center justify-center mt-0.5">
+                          <input 
+                            type="radio" 
+                            name="cvOption" 
+                            checked={useExistingCv} 
+                            onChange={() => setUseExistingCv(true)}
+                            className="peer w-4 h-4 text-primary border-gray-300 focus:ring-primary cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <div className={`text-[14px] font-bold ${useExistingCv ? 'text-primary' : 'text-[#374151]'}`}>Sử dụng CV đã lưu trên VinJobs</div>
+                          <div className="text-[12px] text-[#6b7280] mt-0.5 mb-3">Chọn CV bạn đã tải lên hệ thống trước đó</div>
+                          {useExistingCv && (
+                            <div className="animate-in slide-in-from-top-1 fade-in duration-200">
+                              <select 
+                                value={selectedCvId}
+                                onChange={(e) => setSelectedCvId(e.target.value)}
+                                className="w-full border border-[#d1d5db] rounded-lg px-3 py-2 text-[14px] text-[#111827] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white"
+                              >
+                                {myCvs.map(cv => (
+                                  <option key={cv._id} value={cv._id}>{cv.title}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    )}
+                    
+                    {/* Option 2: Upload CV mới */}
+                    <label className={`flex items-start gap-3 p-4 cursor-pointer transition-all border-t border-[#e5e7eb] ${!useExistingCv ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}>
+                      <div className="relative flex items-center justify-center mt-0.5">
+                        <input 
+                          type="radio" 
+                          name="cvOption" 
+                          checked={!useExistingCv} 
+                          onChange={() => setUseExistingCv(false)}
+                          className="peer w-4 h-4 text-primary border-gray-300 focus:ring-primary cursor-pointer"
+                        />
+                      </div>
                       <div className="flex-1">
-                        <div className="text-[14px] font-bold text-[#111]">Sử dụng CV đã lưu</div>
-                        {useExistingCv && (
-                          <div className="mt-3">
-                            <select 
-                              value={selectedCvId}
-                              onChange={(e) => setSelectedCvId(e.target.value)}
-                              className="w-full border border-[#d1d5db] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-primary"
-                            >
-                              {myCvs.map(cv => (
-                                <option key={cv._id} value={cv._id}>{cv.title}</option>
-                              ))}
-                            </select>
+                        <div className={`text-[14px] font-bold ${!useExistingCv ? 'text-primary' : 'text-[#374151]'}`}>Tải CV mới từ thiết bị</div>
+                        <div className="text-[12px] text-[#6b7280] mt-0.5 mb-3">Hỗ trợ định dạng PDF. Tối đa 5MB.</div>
+                        {!useExistingCv && (
+                          <div className="animate-in slide-in-from-top-1 fade-in duration-200">
+                            <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-[#d1d5db] rounded-xl hover:bg-gray-50 hover:border-primary transition-colors cursor-pointer bg-white">
+                              <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                <span className={`mi text-[32px] ${newCvFile ? 'text-green-500' : 'text-[#9ca3af]'}`}>
+                                  {newCvFile ? 'task' : 'cloud_upload'}
+                                </span>
+                                <p className="mt-2 text-[13px] text-gray-500 font-medium text-center px-4 line-clamp-1">
+                                  {newCvFile ? newCvFile.name : <><span className="text-primary font-semibold">Nhấn để chọn</span> hoặc kéo thả file</>}
+                                </p>
+                              </div>
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept=".pdf"
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    const file = e.target.files[0];
+                                    if(file.type !== 'application/pdf') {
+                                      toast.error('Chỉ hỗ trợ file PDF');
+                                      return;
+                                    }
+                                    if(file.size > 5 * 1024 * 1024) {
+                                      toast.error('File không vượt quá 5MB');
+                                      return;
+                                    }
+                                    setNewCvFile(file);
+                                  }
+                                }}
+                              />
+                            </label>
                           </div>
                         )}
                       </div>
                     </label>
-                  )}
-                  
-                  <label className={`flex items-start gap-3 p-4 cursor-pointer transition-colors border-t border-[#e5e7eb] ${!useExistingCv ? 'bg-[#f0fdf4]' : 'hover:bg-gray-50'}`}>
-                    <input 
-                      type="radio" 
-                      name="cvOption" 
-                      checked={!useExistingCv} 
-                      onChange={() => setUseExistingCv(false)}
-                      className="mt-1 text-primary focus:ring-primary"
-                    />
-                    <div className="flex-1">
-                      <div className="text-[14px] font-bold text-[#111]">Tải CV mới từ máy tính</div>
-                      {!useExistingCv && (
-                        <div className="mt-3">
-                          <input 
-                            type="file" 
-                            accept=".pdf,.doc,.docx"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setNewCvFile(e.target.files[0]);
-                              }
-                            }}
-                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
-                          />
-                          <div className="text-[12px] text-[#666] mt-2">Định dạng hỗ trợ: PDF, DOC, DOCX. Tối đa 5MB.</div>
-                        </div>
-                      )}
-                    </div>
-                  </label>
+
+                  </div>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-4">
-                <label className="block text-[13px] font-bold text-[#333] mb-1.5">Thư giới thiệu (Không bắt buộc)</label>
-                <textarea
-                  rows="3"
-                  value={coverLetter}
-                  onChange={(e) => setCoverLetter(e.target.value)}
-                  placeholder="Viết vài dòng giới thiệu về bản thân và lý do bạn phù hợp với công việc này..."
-                  className="w-full border border-[#d1d5db] rounded-lg px-3.5 py-2.5 text-[14px] outline-none focus:border-primary resize-none"
-                />
-              </div>
-
-              <p className="text-[11px] text-[#666] leading-relaxed mt-4">
-                Bằng việc bấm nút "Ứng tuyển", bạn đã đọc và đồng ý <Link to="/privacy-policy" className="text-primary hover:underline" target="_blank">Chính sách bảo mật</Link> của VinJobs và cho phép chia sẻ thông tin cá nhân của bạn cho Nhà tuyển dụng để họ liên hệ về cơ hội việc làm.
+            {/* Footer */}
+            <div className="p-5 border-t border-[#e5e7eb] bg-white flex flex-col md:flex-row items-center justify-between gap-4 shrink-0">
+              <p className="text-[11px] text-[#6b7280] leading-relaxed max-w-[480px]">
+                Bằng việc bấm nút "Nộp hồ sơ ứng tuyển", bạn đã xác nhận đồng ý với <Link to="/terms" className="text-primary hover:underline">Quy định bảo mật</Link> của VinJobs và cho phép chia sẻ thông tin cho Nhà tuyển dụng.
               </p>
-
-              <div className="flex gap-3 justify-end mt-5">
+              <div className="flex gap-3 w-full md:w-auto">
                 <button 
                   onClick={() => setShowApplyModal(false)}
-                  className="px-5 py-2.5 rounded-lg text-[14px] font-semibold text-[#4b5563] bg-[#e5e7eb] hover:bg-[#d1d5db] transition-colors">
+                  className="flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[14px] font-semibold text-[#4b5563] bg-[#f3f4f6] hover:bg-[#e5e7eb] transition-colors">
                   Hủy
                 </button>
                 <button 
                   onClick={handleApply}
                   disabled={applying || user?.status !== 'ACTIVE'}
-                  className={`px-6 py-2.5 rounded-lg text-[14px] font-bold text-white transition-colors ${applying || user?.status !== 'ACTIVE' ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'}`}>
-                  {applying ? 'Đang gửi...' : 'Ứng tuyển'}
+                  className={`flex-1 md:flex-none px-8 py-2.5 rounded-xl text-[14px] font-bold text-white transition-all shadow-md flex items-center justify-center gap-2 ${applying || user?.status !== 'ACTIVE' ? 'bg-gray-400 cursor-not-allowed shadow-none' : 'bg-primary hover:bg-primary-dark hover:shadow-lg hover:-translate-y-0.5'}`}>
+                  {applying ? (
+                    <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Đang gửi...</>
+                  ) : (
+                    <><span className="mi text-[18px]">send</span> Nộp hồ sơ</>
+                  )}
                 </button>
               </div>
             </div>
+            
           </div>
         </div>
       )}

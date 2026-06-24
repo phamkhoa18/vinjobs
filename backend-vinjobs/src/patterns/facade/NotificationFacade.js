@@ -106,6 +106,32 @@ class NotificationFacade {
       console.error(`[NotificationFacade] Lỗi khi gửi thông báo NewJobToFollower:`, err);
     }
   }
+
+  static async sendNewApplicationNotification(application, candidateUser, job, employerUser) {
+    try {
+      const sender = new EmailSender();
+      const ApplicationNotification = (await import('../../notifications/types/ApplicationNotification.js')).default;
+      const notification = new ApplicationNotification(sender, application, candidateUser, job, employerUser.email);
+      
+      await NotificationService.sendAndSaveNotification(notification);
+      console.log(`[NotificationFacade] Đã gửi thông báo NewApplication cho ${employerUser.email}`);
+    } catch (err) {
+      console.error(`[NotificationFacade] Lỗi khi gửi thông báo NewApplication:`, err);
+    }
+  }
+
+  static async sendApplicationStatusNotification(application, job, candidateUser, newStatus) {
+    try {
+      const sender = new EmailSender();
+      const ApplicationStatusNotification = (await import('../../notifications/types/ApplicationStatusNotification.js')).default;
+      const notification = new ApplicationStatusNotification(sender, application, job, candidateUser.email, newStatus);
+      
+      await NotificationService.sendAndSaveNotification(notification);
+      console.log(`[NotificationFacade] Đã gửi thông báo ApplicationStatus cho ${candidateUser.email}`);
+    } catch (err) {
+      console.error(`[NotificationFacade] Lỗi khi gửi thông báo ApplicationStatus:`, err);
+    }
+  }
 }
 
 export default NotificationFacade;
