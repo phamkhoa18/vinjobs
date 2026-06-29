@@ -6,7 +6,7 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined, UploadOutlined
 } from '@ant-design/icons';
 import * as AntdIcons from '@ant-design/icons';
-import { adminApi } from '../../lib/api';
+import { adminApi, sanitizeHtml } from '../../lib/api';
 
 const { Title, Text } = Typography;
 
@@ -20,7 +20,7 @@ const renderIcon = (record) => {
     return (
       <span 
         className="custom-svg-icon w-5 h-5 flex items-center justify-center" 
-        dangerouslySetInnerHTML={{ __html: record.custom_svg }} 
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(record.custom_svg) }} 
         style={{ fill: 'currentColor' }}
       />
     );

@@ -26,6 +26,18 @@ const jobSchema = new mongoose.Schema(
       trim: true,
       maxlength: [200, 'Địa điểm không được vượt quá 200 ký tự'],
     },
+    province_code: {
+      type: String,
+    },
+    district_code: {
+      type: String,
+    },
+    ward_code: {
+      type: String,
+    },
+    exact_address: {
+      type: String,
+    },
     category_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Category',
@@ -138,10 +150,7 @@ const jobSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Công việc phải được đăng bởi một Employer'],
     },
-    category_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Category',
-    },
+
     deadline: {
       type: Date,
     },
@@ -159,6 +168,7 @@ const jobSchema = new mongoose.Schema(
 jobSchema.index({ company_id: 1 });
 jobSchema.index({ employer_id: 1 });
 jobSchema.index({ status: 1 });
+jobSchema.index({ province_code: 1 });
 jobSchema.index({ title: 'text', location: 'text' });
 
 // Middleware: Auto generate slug from title

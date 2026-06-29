@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { Card, Table, Tag, Button, Input, Space, Typography, Select, message, Modal, Form, Drawer, Descriptions, Popconfirm, Avatar, Row, Col, Tabs, Alert } from 'antd';
 import { SearchOutlined, CheckCircleOutlined, StopOutlined, EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined, BankOutlined, FilterOutlined } from '@ant-design/icons';
-import { adminApi, getImageUrl } from '../../lib/api';
+import { adminApi, getImageUrl, sanitizeHtml } from '../../lib/api';
 import LocationService from '../../services/LocationService';
 
 const { Title, Text } = Typography;
@@ -657,7 +657,7 @@ export default function ManageCompaniesPage() {
               <Descriptions.Item label="Giới thiệu chi tiết">
                 <div 
                   className="prose prose-sm max-w-none text-gray-600"
-                  dangerouslySetInnerHTML={{ __html: viewingCompany.description || 'Chưa có thông tin giới thiệu' }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(viewingCompany.description || 'Chưa có thông tin giới thiệu') }}
                 />
               </Descriptions.Item>
             </Descriptions>

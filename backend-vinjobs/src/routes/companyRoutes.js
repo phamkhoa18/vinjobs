@@ -98,7 +98,16 @@ router.patch('/:id', asyncHandler(async (req, res, next) => {
     ? { _id: req.params.id }
     : { _id: req.params.id, employer_id: req.user.id };
 
-  const company = await Company.findOneAndUpdate(filter, req.body, { new: true, runValidators: true });
+  // BẢO MẬT: Whitelist fields cho phép — chống Mass Assignment
+  const allowedFields = ['name', 'email', 'phone', 'website', 'taxCode',
+    'industry', 'size', 'address', 'description', 'logo', 'cover', 
+    'province', 'companyType'];
+  const filteredBody = {};
+  Object.keys(req.body).forEach(key => {
+    if (allowedFields.includes(key)) filteredBody[key] = req.body[key];
+  });
+
+  const company = await Company.findOneAndUpdate(filter, filteredBody, { new: true, runValidators: true });
   if (!company) return next(new AppError('Công ty không tồn tại hoặc bạn không có quyền', 404));
 
   res.status(200).json({

@@ -19,7 +19,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState('pass'); // BYPASSED FOR TESTING
+  const [captchaToken, setCaptchaToken] = useState('');
   
   const [otp, setOtp] = useState('');
   

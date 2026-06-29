@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { blogApi, getImageUrl } from '../../lib/api';
+import { blogApi, getImageUrl, sanitizeHtml } from '../../lib/api';
 
 export default function BlogPage() {
   const [posts, setPosts] = useState([]);
@@ -210,7 +210,7 @@ export default function BlogPage() {
                       <span className="flex items-center gap-1"><span className="mi text-[14px]">calendar_today</span>{new Date(post.createdAt).toLocaleDateString('vi-VN')}</span>
                       <span className="flex items-center gap-1"><span className="mi text-[14px]">visibility</span>{post.view_count || 0}</span>
                     </div>
-                    <p className="text-[14px] text-[#4b5563] line-clamp-2 leading-relaxed" dangerouslySetInnerHTML={{ __html: post.excerpt || post.content?.replace(/<[^>]*>?/gm, '').substring(0, 120) + '...' }} />
+                    <p className="text-[14px] text-[#4b5563] line-clamp-2 leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.excerpt || post.content?.replace(/<[^>]*>?/gm, '').substring(0, 120) + '...') }} />
                     <div className="mt-4 flex items-center gap-1 text-[13px] font-semibold text-[#2b6fbb] group-hover:gap-2 transition-all">
                       Đọc tiếp <span className="mi text-[16px]">arrow_forward</span>
                     </div>

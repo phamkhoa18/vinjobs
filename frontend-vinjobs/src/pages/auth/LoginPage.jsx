@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState('pass'); // BYPASSED FOR TESTING
+  const [captchaToken, setCaptchaToken] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -53,8 +53,8 @@ export default function LoginPage() {
 
   const handleGoogleRegisterSubmit = async (e) => {
     e.preventDefault();
-    if (password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự');
+    if (password.length < 8) {
+      setError('Mật khẩu phải có ít nhất 8 ký tự');
       return;
     }
     setError('');

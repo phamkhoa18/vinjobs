@@ -3,9 +3,42 @@
  * ==================
  * Tất cả HTTP calls đều đi qua đây.
  * Để đổi URL backend: chỉ sửa VITE_API_URL trong file .env
+ *
+ * TODO [SECURITY]: Migrate JWT storage từ localStorage sang httpOnly cookie
+ * để tránh bị đánh cắp token khi có XSS. Cần thay đổi backend set-cookie flow.
  */
 
+import DOMPurify from 'dompurify';
+
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+/**
+ * Sanitize HTML content trước khi render với dangerouslySetInnerHTML.
+ * Ngăn chặn Stored XSS từ user-generated content (job descriptions, blog posts, etc.)
+ * @param {string} html - Raw HTML string từ database
+ * @returns {string} Sanitized HTML string an toàn để render
+ */
+export const sanitizeHtml = (html) => {
+  if (!html) return '';
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'p', 'br', 'b', 'i', 'u', 'strong', 'em', 'a', 'ul', 'ol', 'li',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code',
+      'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'span', 'div',
+      'sub', 'sup', 'hr', 'figure', 'figcaption', 'video', 'source',
+      'svg', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon',
+    ],
+    ALLOWED_ATTR: [
+      'href', 'target', 'rel', 'src', 'alt', 'title', 'class', 'style',
+      'width', 'height', 'colspan', 'rowspan', 'id',
+      // SVG attributes
+      'viewBox', 'xmlns', 'd', 'fill', 'stroke', 'stroke-width',
+      'cx', 'cy', 'r', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'points',
+    ],
+    ALLOW_DATA_ATTR: false,
+    ADD_ATTR: ['target'],
+  });
+};
 
 // ─── Standard JSDoc Interfaces ─────────────────────────────────────
 /**
@@ -262,7 +295,7 @@ export const authApi = {
   login: (email, password, captchaToken) =>
     api.post('/auth/login', { email, password, captchaToken }),
 
-  getMe: () => api.get('/users/me'),
+  // getMe: được định nghĩa bên dưới (line 320) — endpoint /auth/me
   updatePassword: (data) => api.patch('/users/me/password', data),
 
   /**

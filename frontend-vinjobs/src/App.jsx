@@ -226,11 +226,11 @@ function AppLayout() {
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:id" element={<BlogDetailPage />} />
 
-          {/* User utility */}
-          <Route path="/saved-posts" element={<SavedPostsPage />} />
-          <Route path="/saved-searches" element={<SavedSearchesPage />} />
-          <Route path="/view-history" element={<ViewHistoryPage />} />
-          <Route path="/my-reviews" element={<MyReviewsPage />} />
+          {/* User utility (requires auth) */}
+          <Route path="/saved-posts" element={<ProtectedRoute><SavedPostsPage /></ProtectedRoute>} />
+          <Route path="/saved-searches" element={<ProtectedRoute><SavedSearchesPage /></ProtectedRoute>} />
+          <Route path="/view-history" element={<ProtectedRoute><ViewHistoryPage /></ProtectedRoute>} />
+          <Route path="/my-reviews" element={<ProtectedRoute><MyReviewsPage /></ProtectedRoute>} />
 
 
 

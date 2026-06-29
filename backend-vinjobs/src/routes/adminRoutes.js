@@ -7,10 +7,11 @@ import Job from '../models/Job.js';
 import Application from '../models/Application.js';
 import Category from '../models/Category.js';
 import AppError from '../utils/AppError.js';
+import { escapeRegex } from '../utils/security.js';
 import { upload } from '../middlewares/uploadMiddleware.js';
 import imageService from '../services/ImageService.js';
 import settingController from '../controllers/settingController.js';
-import NotificationFacade from '../patterns/facade/NotificationFacade.js';
+import NotificationFacade from '../facades/NotificationFacade.js';
 
 const router = express.Router();
 
@@ -137,9 +138,11 @@ router.get('/users', asyncHandler(async (req, res) => {
   if (role) filter.role = role;
   if (status) filter.status = status;
   if (search) {
+    // BẢO MẬT: Escape regex để chống ReDoS / NoSQL Injection
+    const safeSearch = escapeRegex(search);
     filter.$or = [
-      { name: new RegExp(search, 'i') },
-      { email: new RegExp(search, 'i') },
+      { name: new RegExp(safeSearch, 'i') },
+      { email: new RegExp(safeSearch, 'i') },
     ];
   }
 
@@ -191,10 +194,15 @@ router.post('/users', asyncHandler(async (req, res, next) => {
     return next(new AppError('Email này đã được sử dụng', 400));
   }
 
+  // BẢO MẬT: Yêu cầu mật khẩu bắt buộc, không dùng mặc định
+  if (!password || password.length < 8) {
+    return next(new AppError('Mật khẩu bắt buộc và phải có ít nhất 8 ký tự', 400));
+  }
+
   const user = await User.create({
     name,
     email,
-    password: password || '123456', // Mật khẩu mặc định nếu không cung cấp
+    password,
     role: role || 'CANDIDATE',
     status: status || 'ACTIVE',
     phone
@@ -265,7 +273,7 @@ router.get('/companies', asyncHandler(async (req, res) => {
   
   const filter = {};
   if (status) filter.status = status;
-  if (search) filter.name = new RegExp(search, 'i');
+  if (search) filter.name = new RegExp(escapeRegex(search), 'i');
 
   const companies = await Company.find(filter)
     .populate('employer_id', 'name email')
@@ -372,9 +380,18 @@ router.get('/companies/:id', asyncHandler(async (req, res, next) => {
 
 // PATCH /api/v1/admin/companies/:id - Cập nhật toàn bộ thông tin công ty
 router.patch('/companies/:id', asyncHandler(async (req, res, next) => {
+  // BẢO MẬT: Whitelist các fields cho phép cập nhật
+  const allowedFields = ['name', 'email', 'phone', 'website', 'taxCode', 'status', 
+    'industry', 'size', 'address', 'description', 'logo', 'cover', 'province',
+    'companyType', 'business_license', 'rejection_reason'];
+  const filteredBody = {};
+  Object.keys(req.body).forEach(key => {
+    if (allowedFields.includes(key)) filteredBody[key] = req.body[key];
+  });
+
   const company = await Company.findByIdAndUpdate(
     req.params.id,
-    req.body,
+    filteredBody,
     { new: true, runValidators: true }
   );
 
@@ -537,7 +554,7 @@ router.patch('/jobs/:id/status', asyncHandler(async (req, res, next) => {
 
   // Trigger Notification to Employer
   try {
-    const NotificationFacade = (await import('../patterns/facade/NotificationFacade.js')).default;
+    const NotificationFacade = (await import('../facades/NotificationFacade.js')).default;
     if (status === 'APPROVED' && job.employer_id) {
       await NotificationFacade.sendJobApprovedNotification(job, job.employer_id);
       

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { blogApi, getImageUrl } from '../../lib/api';
+import { blogApi, getImageUrl, sanitizeHtml } from '../../lib/api';
 
 const calloutStyles = {
   lightbulb: { bg: 'bg-warning-50', border: 'border-[#fde68a]', text: 'text-warning', label: 'Gợi ý' },
@@ -175,7 +175,7 @@ export default function BlogDetailPage() {
                 </div>
 
                 {/* Content body */}
-                <div className="space-y-4 quill-content" dangerouslySetInnerHTML={{ __html: post.content }}>
+                <div className="space-y-4 quill-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}>
                 </div>
 
                 {/* Action row */}

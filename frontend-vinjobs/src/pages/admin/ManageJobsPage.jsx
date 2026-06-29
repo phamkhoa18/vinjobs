@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { Card, Table, Tag, Button, Input, Space, Typography, Select, Modal, Row, Col, Divider, message, Descriptions } from 'antd';
 import { SearchOutlined, CheckCircleOutlined, StopOutlined, EyeOutlined } from '@ant-design/icons';
-import { adminApi } from '../../lib/api';
+import { adminApi, sanitizeHtml } from '../../lib/api';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -337,15 +337,15 @@ export default function ManageJobsPage() {
 
             <Divider />
             <Title level={5}>Mô tả công việc</Title>
-            <div className="text-gray-700 quill-content bg-gray-50 p-4 rounded-lg" dangerouslySetInnerHTML={{ __html: selectedJob.description }} />
+            <div className="text-gray-700 quill-content bg-gray-50 p-4 rounded-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedJob.description) }} />
             
             <Title level={5} className="mt-6">Yêu cầu ứng viên</Title>
-            <div className="text-gray-700 quill-content bg-gray-50 p-4 rounded-lg" dangerouslySetInnerHTML={{ __html: selectedJob.requirements }} />
+            <div className="text-gray-700 quill-content bg-gray-50 p-4 rounded-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedJob.requirements) }} />
             
             {selectedJob.nice_to_have && selectedJob.nice_to_have.trim() !== '<p><br></p>' && (
               <>
                 <Title level={5} className="mt-6">Yêu cầu ưu tiên (Không bắt buộc)</Title>
-                <div className="text-gray-700 quill-content bg-blue-50 p-4 rounded-lg" dangerouslySetInnerHTML={{ __html: selectedJob.nice_to_have }} />
+                <div className="text-gray-700 quill-content bg-blue-50 p-4 rounded-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedJob.nice_to_have) }} />
               </>
             )}
           </div>

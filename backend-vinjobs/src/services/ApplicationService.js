@@ -1,6 +1,17 @@
 import Application from '../models/Application.js';
 import Job from '../models/Job.js';
 
+/**
+ * ApplicationService — Service Layer
+ * 
+ * Chịu trách nhiệm xử lý CRUD thuần túy cho đơn ứng tuyển.
+ * KHÔNG chứa logic gửi notification — phần đó thuộc về 
+ * RecruitmentFacade (Façade Pattern) để đảm bảo tách biệt trách nhiệm.
+ * 
+ * Singleton Pattern: export default new ApplicationService()
+ * → Module caching của Node.js đảm bảo toàn bộ ứng dụng 
+ *   chỉ sử dụng duy nhất 1 instance của class này.
+ */
 class ApplicationService {
   async applyForJob(jobId, candidateId, data) {
     const job = await Job.findById(jobId);
@@ -22,17 +33,8 @@ class ApplicationService {
 
     await application.save();
     
-    try {
-      const User = (await import('../models/User.js')).default;
-      const candidateUser = await User.findById(candidateId);
-      const employerUser = await User.findById(job.employer_id);
-      if (candidateUser && employerUser) {
-        const NotificationFacade = (await import('../patterns/facade/NotificationFacade.js')).default;
-        await NotificationFacade.sendNewApplicationNotification(application, candidateUser, job, employerUser);
-      }
-    } catch (err) {
-      console.error('Error sending application notification:', err);
-    }
+    // Notification logic đã được chuyển sang RecruitmentFacade (Façade Pattern)
+    // Để đảm bảo Service chỉ làm CRUD, Facade điều phối workflow phức tạp
 
     return application;
   }
@@ -102,17 +104,9 @@ class ApplicationService {
     application.status = status;
     await application.save();
 
-    try {
-      const User = (await import('../models/User.js')).default;
-      const job = await Job.findById(application.job_id);
-      const candidateUser = await User.findById(application.candidate_id);
-      if (job && candidateUser) {
-        const NotificationFacade = (await import('../patterns/facade/NotificationFacade.js')).default;
-        await NotificationFacade.sendApplicationStatusNotification(application, job, candidateUser, status);
-      }
-    } catch (err) {
-      console.error('Error sending application status notification:', err);
-    }
+    // Notification logic đã được chuyển sang RecruitmentFacade (Façade Pattern)
+    // Facade sẽ gọi NotificationFacade.sendApplicationStatusMultiChannel()
+    // để gửi qua cả Email + SMS (Bridge Pattern)
 
     return application;
   }

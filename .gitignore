@@ -16,3 +16,8 @@ frontend-vinjobs/node_modules/
 backend-vinjobs/.env
 frontend-vinjobs/.env
 frontend-vinjobs/dist/
+
+# Security - sensitive files
+backend-vinjobs/otp_test.txt
+*.env.local
+*.env.production

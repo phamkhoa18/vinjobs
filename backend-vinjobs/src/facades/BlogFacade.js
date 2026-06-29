@@ -1,3 +1,15 @@
+/**
+ * BlogFacade — Façade Pattern (GoF)
+ * 
+ * Điều phối quy trình duyệt bài viết Blog bằng cách phối hợp
+ * nhiều Service (PostService, AuthService, NotificationService):
+ *   1. Chuyển trạng thái bài viết → PostService
+ *   2. Tìm tác giả → AuthService
+ *   3. Gửi thông báo cho tác giả → NotificationService + Bridge Pattern
+ * 
+ * Controller chỉ cần gọi: blogFacade.approvePost(adminId, postId)
+ * mà không cần biết chi tiết các bước bên trong.
+ */
 import EmailSender from '../notifications/senders/EmailSender.js';
 import PostApprovedNotification from '../notifications/types/PostApprovedNotification.js';
 

@@ -9,7 +9,9 @@ export default function AdminLoginPage() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
   const [searchParams] = useSearchParams();
-  const returnUrl = searchParams.get('returnUrl') || '/admin';
+  const rawReturnUrl = searchParams.get('returnUrl') || '/admin';
+  // Prevent open redirect: only allow relative paths starting with /
+  const returnUrl = (rawReturnUrl.startsWith('/') && !rawReturnUrl.startsWith('//')) ? rawReturnUrl : '/admin';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

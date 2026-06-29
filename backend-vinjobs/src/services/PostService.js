@@ -1,6 +1,13 @@
 import Post from '../models/Post.js';
 import AppError from '../utils/AppError.js';
 
+/**
+ * PostService — Singleton Pattern (qua Module Caching)
+ * 
+ * Service xử lý CRUD cho bài viết Blog, duyệt bài, tìm kiếm bài viết.
+ * Sử dụng `export default new PostService()` — đảm bảo chỉ có 1 instance
+ * duy nhất trong toàn bộ ứng dụng (Singleton Pattern).
+ */
 class PostService {
   async createPost(authorId, data) {
     if (data.content) {

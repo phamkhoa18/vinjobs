@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { formatSalary } from '../../utils/format';
-import { companiesApi, getImageUrl, savedJobsApi, userStorage } from '../../lib/api';
+import { companiesApi, getImageUrl, savedJobsApi, userStorage, sanitizeHtml } from '../../lib/api';
 import toast from 'react-hot-toast';
 
 const INDUSTRIES = ['Tất cả', 'Công nghệ', 'E-commerce', 'FMCG', 'Bán lẻ', 'Vận tải', 'Viễn thông', 'Điện tử'];
@@ -276,7 +276,7 @@ function CompanyDetailPage({ id }) {
             <div>
               <h3 className="text-[16px] font-bold text-[#111827] mb-3 flex items-center gap-2"><span className="mi text-primary">info</span> Giới thiệu công ty</h3>
               {company.description ? (
-                <div className="text-[14px] text-[#374151] leading-relaxed [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&_p]:mb-2" dangerouslySetInnerHTML={{ __html: company.description }} />
+                <div className="text-[14px] text-[#374151] leading-relaxed [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&_p]:mb-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(company.description) }} />
               ) : (
                 <p className="text-[14px] text-[#6b7280] italic">Chưa có thông tin giới thiệu.</p>
               )}

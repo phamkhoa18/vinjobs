@@ -5,18 +5,32 @@ import User from '../models/User.js';
 import Company from '../models/Company.js';
 import AppError from '../utils/AppError.js';
 import sendEmail from '../utils/email.js';
+import { env } from '../config/env.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'vinjobs-secret-key-2026';
-const JWT_EXPIRES = process.env.JWT_EXPIRES_IN || '90d';
+// BẢO MẬT: Không dùng fallback hardcoded — env.js đã validate khi khởi động
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// BẢO MẬT: Helper escape HTML để chống XSS trong email
+const escapeHtml = (str) => {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+};
+
+/**
+ * AuthService — Singleton Pattern (qua Module Caching)
+ * 
+ * Service xử lý authentication & authorization (đăng ký, đăng nhập, JWT, OTP).
+ * Sử dụng `export default new AuthService()` — Node.js module system đảm bảo
+ * file chỉ được evaluate 1 lần, nên mọi import đều nhận cùng 1 instance.
+ * Đây là Singleton Pattern phổ biến trong hệ sinh thái JavaScript.
+ */
 class AuthService {
   static signAccessToken(id) {
-    return jwt.sign({ id }, JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '15m' });
+    return jwt.sign({ id }, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN });
   }
 
   static signRefreshToken(id) {
-    return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' });
+    return jwt.sign({ id }, env.JWT_REFRESH_SECRET, { expiresIn: env.JWT_REFRESH_EXPIRES_IN });
   }
 
   // Tạo OTP 6 số
@@ -26,8 +40,8 @@ class AuthService {
     // OTP hết hạn sau 10 phút
     const expires = Date.now() + 10 * 60 * 1000;
     
-    // Ghi OTP ra file tạm để test tự động
-    import('fs').then(fs => fs.writeFileSync('otp_test.txt', otp));
+    // BẢO MẬT: OTP chỉ tồn tại trong email và dưới dạng hash trong DB
+    // Không bao giờ ghi ra file hay log ra console
     
     return { otp, hashedOTP, expires };
   }
@@ -77,8 +91,10 @@ class AuthService {
     await user.save({ validateBeforeSave: false });
 
     // Send email
+    // BẢO MẬT: Escape HTML trong name để chống XSS qua email
+    const safeName = escapeHtml(name);
     const message = `Chào ${name},\n\nMã xác thực (OTP) của bạn tại VinJobs là: ${otp}\n\nMã này sẽ hết hạn sau 10 phút.`;
-    const html = `<h3>Chào ${name},</h3><p>Mã xác thực (OTP) của bạn tại VinJobs là: <strong style="font-size: 24px; color: #3674c5;">${otp}</strong></p><p>Mã này sẽ hết hạn sau 10 phút.</p>`;
+    const html = `<h3>Chào ${safeName},</h3><p>Mã xác thực (OTP) của bạn tại VinJobs là: <strong style="font-size: 24px; color: #3674c5;">${otp}</strong></p><p>Mã này sẽ hết hạn sau 10 phút.</p>`;
     
     try {
       await sendEmail({
@@ -153,7 +169,8 @@ class AuthService {
     user.verificationCodeExpires = expires;
     await user.save({ validateBeforeSave: false });
 
-    const html = `<h3>Chào ${user.name},</h3><p>Mã xác thực (OTP) mới của bạn tại VinJobs là: <strong style="font-size: 24px; color: #3674c5;">${otp}</strong></p><p>Mã này sẽ hết hạn sau 10 phút.</p>`;
+    const safeName = escapeHtml(user.name);
+    const html = `<h3>Chào ${safeName},</h3><p>Mã xác thực (OTP) mới của bạn tại VinJobs là: <strong style="font-size: 24px; color: #3674c5;">${otp}</strong></p><p>Mã này sẽ hết hạn sau 10 phút.</p>`;
     
     try {
       await sendEmail({
@@ -252,8 +269,8 @@ class AuthService {
   }
 
   async googleRegister(accessToken, password, role) {
-    if (!password || password.length < 6) {
-      throw new AppError('Mật khẩu phải có ít nhất 6 ký tự', 400);
+    if (!password || password.length < 8) {
+      throw new AppError('Mật khẩu phải có ít nhất 8 ký tự', 400);
     }
 
     try {
@@ -308,8 +325,8 @@ class AuthService {
     const resetToken = user.createPasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
-    // Frontend URL để người dùng click vào reset pass
-    const resetURL = `http://localhost:5173/reset-password/${resetToken}`;
+    // BẢO MẬT: Dùng biến môi trường thay vì hardcode localhost
+    const resetURL = `${env.CLIENT_URL}/reset-password/${resetToken}`;
 
     const message = `Bạn đã yêu cầu đặt lại mật khẩu. Vui lòng truy cập đường dẫn dưới đây để thay đổi mật khẩu của bạn:\n\n${resetURL}\n\nNếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này. Mã khôi phục này sẽ hết hạn sau 10 phút.`;
 

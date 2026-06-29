@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { formatSalary, jobTypeLabels, jobLevelLabels } from '../../utils/format';
-import { jobsApi, applicationsApi, getImageUrl, cvApi, uploadApi } from '../../lib/api';
+import { jobsApi, applicationsApi, getImageUrl, cvApi, uploadApi, sanitizeHtml } from '../../lib/api';
 import { userStorage } from '../../lib/api';
 import { toast } from 'react-hot-toast';
 
@@ -164,6 +164,12 @@ export default function JobDetailPage() {
       return;
     }
     
+    const isJobExpired = job?.deadline && new Date(job.deadline).setHours(23, 59, 59, 999) < new Date().getTime();
+    if (job?.status === 'CLOSED' || job?.status === 'EXPIRED' || isJobExpired) {
+      toast.error('Tin tuyển dụng này đã hết hạn ứng tuyển');
+      return;
+    }
+    
     // Fetch user CVs
     try {
       const res = await cvApi.getMyCVs();
@@ -262,6 +268,8 @@ export default function JobDetailPage() {
   }
 
   const employerPhone = job?.employer_id?.phone || 'Chưa cập nhật';
+  const isExpired = job?.deadline && new Date(job.deadline).setHours(23, 59, 59, 999) < new Date().getTime();
+  const cantApply = job?.status === 'CLOSED' || job?.status === 'EXPIRED' || isExpired;
 
   /* ── Constants ── */
 
@@ -329,6 +337,7 @@ export default function JobDetailPage() {
                   <span>{job.postedAt || 'Vừa xong'}</span>
                   <span>·</span>
                   <span>{job.contacts || 0} Liên Hệ</span>
+                  {cantApply && <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-600 rounded text-[11px] font-bold">Hết hạn</span>}
                 </div>
                 <button onClick={handleShare} className="flex items-center gap-1 text-[#444] hover:text-[#2563eb] transition-colors font-medium ml-2 border-l border-[#ddd] pl-3">
                   <span className="mi text-[20px]">share</span>
@@ -387,12 +396,12 @@ export default function JobDetailPage() {
               </div>
 
               <h2 className="text-[16px] font-bold text-[#111] mb-4">Mô tả công việc</h2>
-              <div className="text-[14px] text-[#333] leading-relaxed [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&_p]:mb-2" dangerouslySetInnerHTML={{ __html: job?.description }}></div>
+              <div className="text-[14px] text-[#333] leading-relaxed [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&_p]:mb-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job?.description) }}></div>
 
               {job?.requirements && (
                 <>
                   <h2 className="text-[16px] font-bold text-[#111] mt-6 mb-4">Yêu cầu ứng viên</h2>
-                  <div className="text-[14px] text-[#333] leading-relaxed [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&_p]:mb-2" dangerouslySetInnerHTML={{ __html: job?.requirements }}></div>
+                  <div className="text-[14px] text-[#333] leading-relaxed [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&_p]:mb-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job?.requirements) }}></div>
                 </>
               )}
 
@@ -484,10 +493,10 @@ export default function JobDetailPage() {
                   </button>
                   <button 
                     onClick={handleOpenApplyModal}
-                    disabled={hasApplied}
-                    className={`flex-1 py-3 text-white rounded-xl text-[14px] font-bold transition-colors flex items-center justify-center gap-2 ${hasApplied ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'}`}>
-                    <span className="mi text-[20px]">{hasApplied ? 'check_circle' : 'send'}</span>
-                    {hasApplied ? 'Đã ứng tuyển' : 'Ứng tuyển'}
+                    disabled={hasApplied || cantApply}
+                    className={`flex-1 py-3 text-white rounded-xl text-[14px] font-bold transition-colors flex items-center justify-center gap-2 ${hasApplied || cantApply ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'}`}>
+                    <span className="mi text-[20px]">{hasApplied ? 'check_circle' : (cantApply ? 'block' : 'send')}</span>
+                    {hasApplied ? 'Đã ứng tuyển' : (cantApply ? 'Hết hạn ứng tuyển' : 'Ứng tuyển')}
                   </button>
                 </div>
               </div>
@@ -589,10 +598,10 @@ export default function JobDetailPage() {
           </button>
           <button 
             onClick={handleOpenApplyModal}
-            disabled={hasApplied}
-            className={`flex-1 h-12 text-white rounded-xl text-[14px] font-bold transition-colors flex items-center justify-center gap-1.5 ${hasApplied ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'}`}>
-            <span className="mi text-[20px]">{hasApplied ? 'check_circle' : 'send'}</span>
-            {hasApplied ? 'Đã ứng tuyển' : 'Ứng tuyển'}
+            disabled={hasApplied || cantApply}
+            className={`flex-1 h-12 text-white rounded-xl text-[14px] font-bold transition-colors flex items-center justify-center gap-1.5 ${hasApplied || cantApply ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'}`}>
+            <span className="mi text-[20px]">{hasApplied ? 'check_circle' : (cantApply ? 'block' : 'send')}</span>
+            {hasApplied ? 'Đã ứng tuyển' : (cantApply ? 'Hết hạn' : 'Ứng tuyển')}
           </button>
         </div>
       </div>

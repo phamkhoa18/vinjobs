@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { validateEnv } from './src/config/env.js';
 import app from './app.js';
 import db from './src/config/database.js';
 
@@ -6,6 +7,9 @@ const PORT = process.env.PORT || 8000;
 
 const startServer = async () => {
   try {
+    // BẢO MẬT: Kiểm tra biến môi trường trước khi khởi động
+    validateEnv();
+    
     await db.connect();
     
     app.listen(PORT, () => {

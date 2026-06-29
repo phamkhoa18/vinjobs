@@ -60,7 +60,7 @@ router.post('/', restrictTo('EMPLOYER', 'ADMIN'), asyncHandler(async (req, res, 
 
   // Notify admins
   try {
-    const NotificationFacade = (await import('../patterns/facade/NotificationFacade.js')).default;
+    const NotificationFacade = (await import('../facades/NotificationFacade.js')).default;
     await NotificationFacade.sendNewJobNotification(job, company);
   } catch (err) {
     console.error('Lỗi khi gửi thông báo job mới:', err);
@@ -79,7 +79,16 @@ router.patch('/:id', restrictTo('EMPLOYER', 'ADMIN'), asyncHandler(async (req, r
     ? { _id: req.params.id }
     : { _id: req.params.id, employer_id: req.user.id };
 
-  const job = await Job.findOneAndUpdate(filter, req.body, { new: true, runValidators: true });
+  // BẢO MẬT: Whitelist fields cho phép — chống Mass Assignment
+  const allowedFields = ['title', 'description', 'requirements', 'benefits', 'location', 
+    'province_code', 'salary_min', 'salary_max', 'type', 'level', 'category_id',
+    'deadline', 'experience', 'quantity', 'skills', 'gender', 'age_range'];
+  const filteredBody = {};
+  Object.keys(req.body).forEach(key => {
+    if (allowedFields.includes(key)) filteredBody[key] = req.body[key];
+  });
+
+  const job = await Job.findOneAndUpdate(filter, filteredBody, { new: true, runValidators: true });
   if (!job) return next(new AppError('Tin không tồn tại hoặc bạn không có quyền chỉnh sửa', 404));
 
   res.status(200).json({
@@ -94,8 +103,21 @@ router.delete('/:id', restrictTo('EMPLOYER', 'ADMIN'), asyncHandler(async (req, 
     ? { _id: req.params.id }
     : { _id: req.params.id, employer_id: req.user.id };
 
-  const job = await Job.findOneAndDelete(filter);
+  // Check if job exists and belongs to user (or is admin)
+  const job = await Job.findOne(filter);
   if (!job) return next(new AppError('Tin không tồn tại hoặc bạn không có quyền xoá', 404));
+
+  if (job.status === 'APPROVED' || job.status === 'PENDING') {
+    return next(new AppError('Không thể xoá tin đang chờ duyệt hoặc đang mở. Vui lòng chuyển trạng thái sang "Đóng" tin trước.', 400));
+  }
+
+  const Application = (await import('../models/Application.js')).default;
+  const SavedJob = (await import('../models/SavedJob.js')).default;
+
+  // Cascade delete all associated data
+  await Application.deleteMany({ job_id: job._id });
+  await SavedJob.deleteMany({ job_id: job._id });
+  await Job.findByIdAndDelete(job._id);
 
   res.status(204).json({ status: 'success', data: null });
 }));

@@ -17,6 +17,7 @@
     "antd": "^6.4.4",
     "antd-img-crop": "^4.30.0",
     "browser-image-compression": "^2.0.2",
+    "dompurify": "^3.4.11",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-helmet-async": "^3.0.0",

@@ -1,7 +1,15 @@
 import Job from '../models/Job.js';
 import AppError from '../utils/AppError.js';
+import { escapeRegex } from '../utils/security.js';
 import mongoose from 'mongoose';
 
+/**
+ * JobService — Singleton Pattern (qua Module Caching)
+ * 
+ * Service xử lý CRUD cho tin tuyển dụng, tìm kiếm job và thống kê danh mục.
+ * Sử dụng `export default new JobService()` — đảm bảo chỉ có 1 instance
+ * duy nhất trong toàn bộ ứng dụng (Singleton Pattern).
+ */
 class JobService {
   async createJob(employerId, companyId, data) {
     const job = await Job.create({
@@ -44,7 +52,11 @@ class JobService {
     }
     
     // Lọc cơ bản
-    if (query.location) filter.location = new RegExp(query.location, 'i');
+    if (query.province_code) {
+      filter.province_code = query.province_code;
+    } else if (query.location) {
+      filter.location = new RegExp(escapeRegex(query.location), 'i');
+    }
     if (query.type) filter.type = query.type;
     if (query.level) filter.level = query.level;
     if (query.category_id) filter.category_id = query.category_id;

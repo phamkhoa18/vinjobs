@@ -55,7 +55,7 @@ export default function EmployerRegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState('pass'); // BYPASSED FOR TESTING
+  const [captchaToken, setCaptchaToken] = useState('');
   
   // Company Form
   const [taxCode, setTaxCode] = useState('');

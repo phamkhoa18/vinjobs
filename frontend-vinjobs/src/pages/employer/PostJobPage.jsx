@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmployerLayout from '../../components/layout/EmployerLayout';
-import { jobsApi, blogApi, getImageUrl } from '../../lib/api';
+import { jobsApi, blogApi, getImageUrl, sanitizeHtml, tokenStorage } from '../../lib/api';
 import LocationService from '../../services/LocationService';
 import { Form, Input, Select, Button, Steps, Row, Col, Checkbox, InputNumber, DatePicker, TimePicker, message, Typography, Space, Divider, Tag, Upload } from 'antd';
 import { CheckCircleOutlined, PlusOutlined, VideoCameraOutlined } from '@ant-design/icons';
@@ -158,6 +158,10 @@ export default function PostJobPage() {
         type: values.type,
         level: Array.isArray(values.level) ? values.level[0] : values.level,
         location: fullLocation,
+        province_code: values.province_code,
+        district_code: values.district_code,
+        ward_code: values.ward_code,
+        exact_address: values.exact_address,
         deadline: values.deadline.format('YYYY-MM-DD'),
         slots: values.slots,
         salary_min: values.negotiable ? null : (values.salaryMin ? values.salaryMin * 1000000 : null),
@@ -461,7 +465,7 @@ export default function PostJobPage() {
                     name="image"
                     listType="picture-card"
                     action={`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/upload/image`}
-                    headers={{ Authorization: `Bearer ${localStorage.getItem('vj_token')}` }}
+                    headers={{ Authorization: `Bearer ${tokenStorage.get()}` }}
                     multiple
                     onChange={(info) => {
                       if (info.file.status === 'done') {
@@ -573,13 +577,13 @@ export default function PostJobPage() {
                 </Row>
                 <Divider style={{ margin: '12px 0' }} />
                 <Title level={5} className="mt-4">Mô tả công việc</Title>
-                <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: formValues.description }} />
+                <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(formValues.description) }} />
                 <Title level={5} className="mt-4">Yêu cầu ứng viên</Title>
-                <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: formValues.requirements }} />
+                <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(formValues.requirements) }} />
                 {formValues.nice_to_have && formValues.nice_to_have !== '<p><br></p>' && (
                   <>
                     <Title level={5} className="mt-4">Điểm cộng</Title>
-                    <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: formValues.nice_to_have }} />
+                    <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(formValues.nice_to_have) }} />
                   </>
                 )}
 

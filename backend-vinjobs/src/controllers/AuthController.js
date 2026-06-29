@@ -3,6 +3,7 @@ import asyncHandler from 'express-async-handler';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import AppError from '../utils/AppError.js';
+import { env } from '../config/env.js';
 
 const createSendToken = (user, accessToken, refreshToken, statusCode, res) => {
   const cookieOptions = {
@@ -116,8 +117,8 @@ class AuthController {
 
   resetPassword = asyncHandler(async (req, res, next) => {
     const { password } = req.body;
-    if (!password || password.length < 6) {
-      return res.status(400).json({ status: 'fail', message: 'Mật khẩu mới phải có ít nhất 6 ký tự.' });
+    if (!password || password.length < 8) {
+      return res.status(400).json({ status: 'fail', message: 'Mật khẩu mới phải có ít nhất 8 ký tự.' });
     }
     const { user, accessToken, refreshToken } = await authService.resetPassword(req.params.token, password);
     createSendToken(user, accessToken, refreshToken, 200, res);
@@ -132,8 +133,8 @@ class AuthController {
     }
 
     try {
-      // Xác thực Refresh Token
-      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+      // Xác thực Refresh Token — BẢO MẬT: Dùng env, không fallback
+      const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET);
 
       // Kiểm tra user còn tồn tại không
       const user = await User.findById(decoded.id);
@@ -146,11 +147,11 @@ class AuthController {
         return next(new AppError('Tài khoản đã bị khóa.', 403));
       }
 
-      // Cấp Access Token mới
+      // Cấp Access Token mới — BẢO MẬT: Dùng env, không fallback
       const newAccessToken = jwt.sign(
         { id: user._id },
-        process.env.JWT_SECRET || 'vinjobs-super-secret-jwt-key-2026-production',
-        { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+        env.JWT_SECRET,
+        { expiresIn: env.JWT_EXPIRES_IN }
       );
 
       res.status(200).json({

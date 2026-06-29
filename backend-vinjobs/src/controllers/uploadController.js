@@ -74,10 +74,10 @@ class UploadController {
       });
     } catch (error) {
       console.error('[uploadDocument] Error:', error);
+      // BẢO MẬT: Không trả về stack trace cho client
       res.status(500).json({
         status: 'error',
-        message: error.message,
-        stack: error.stack
+        message: 'Có lỗi xảy ra khi tải tài liệu. Vui lòng thử lại.'
       });
     }
   });

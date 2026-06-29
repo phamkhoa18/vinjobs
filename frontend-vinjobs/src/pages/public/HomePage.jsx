@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { jobsApi, companiesApi, blogApi, publicApi, getImageUrl } from '../../lib/api';
+import { jobsApi, companiesApi, blogApi, publicApi, getImageUrl, sanitizeHtml } from '../../lib/api';
 import { useProvinces } from '../../hooks/useProvinces';
 import * as AntdIcons from '@ant-design/icons';
 
@@ -357,7 +357,7 @@ function HeroSearch({ topCategories = [] }) {
                         onClick={() => { setIndustry(ind); setShowInd(false); }}>
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${ind.bg_color || '#eef2ff'}`, color: `${ind.icon_color || '#3674c5'}` }}>
                           {ind.custom_svg ? (
-                            <span className="w-5 h-5 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: ind.custom_svg }} style={{ fill: 'currentColor' }} />
+                            <span className="w-5 h-5 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: sanitizeHtml(ind.custom_svg) }} style={{ fill: 'currentColor' }} />
                           ) : (
                             <IconComp className="text-[18px]" />
                           )}
@@ -506,7 +506,7 @@ export default function HomePage() {
                   <div className="flex flex-col gap-4">
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:-translate-y-1" style={{ backgroundColor: cat.bg_color || '#eef2ff', color: cat.icon_color || '#3674c5' }}>
                       {cat.custom_svg ? (
-                        <span className="w-6 h-6 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: cat.custom_svg }} style={{ fill: 'currentColor' }} />
+                        <span className="w-6 h-6 flex items-center justify-center" dangerouslySetInnerHTML={{ __html: sanitizeHtml(cat.custom_svg) }} style={{ fill: 'currentColor' }} />
                       ) : (
                         <IconComp className="text-2xl" />
                       )}

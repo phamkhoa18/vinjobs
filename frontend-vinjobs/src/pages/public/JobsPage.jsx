@@ -240,7 +240,7 @@ export default function JobsPage() {
 
         if (query) params.keyword = query;
         if (selectedProvince && !selectedProvince.name.includes('Toàn quốc')) {
-          // just an approximation based on the name
+          params.province_code = String(selectedProvince.code);
           params.location = selectedProvince.name;
         }
 

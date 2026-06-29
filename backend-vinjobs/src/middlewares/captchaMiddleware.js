@@ -1,10 +1,7 @@
 import AppError from '../utils/AppError.js';
 
 export const verifyCaptcha = async (req, res, next) => {
-  // BYPASS CAPTCHA FOR TESTING AS REQUESTED BY USER
-  return next();
-
-  // Bỏ qua kiểm tra trong môi trường test nếu cần
+  // BẢO MẬT: Chỉ bypass CAPTCHA trong môi trường test
   if (process.env.NODE_ENV === 'test') return next();
 
   const { captchaToken } = req.body;

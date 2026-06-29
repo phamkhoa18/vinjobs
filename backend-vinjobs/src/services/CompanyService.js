@@ -3,6 +3,13 @@ import Job from '../models/Job.js';
 import AppError from '../utils/AppError.js';
 import mongoose from 'mongoose';
 
+/**
+ * CompanyService — Singleton Pattern (qua Module Caching)
+ * 
+ * Service xử lý CRUD cho công ty, tìm kiếm và thống kê top công ty.
+ * Sử dụng `export default new CompanyService()` — đảm bảo chỉ có 1 instance
+ * duy nhất trong toàn bộ ứng dụng (Singleton Pattern).
+ */
 class CompanyService {
   async createCompany(employerId, data) {
     const existingCompany = await Company.findOne({ employer_id: employerId });

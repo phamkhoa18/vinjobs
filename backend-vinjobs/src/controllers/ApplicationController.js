@@ -1,7 +1,23 @@
 import ApplicationService from '../services/ApplicationService.js';
+import recruitmentFacade from '../facades/RecruitmentFacade.js';
 import AppError from '../utils/AppError.js';
 
+/**
+ * ApplicationController — HTTP Request Handler
+ * 
+ * Controller chỉ tiếp nhận HTTP request, extract dữ liệu,
+ * và ủy thác xử lý cho Facade hoặc Service:
+ * - applyForJob / updateStatus → qua RecruitmentFacade (Façade Pattern)
+ *   vì cần phối hợp nhiều subsystem (Service + Notification)
+ * - getMyApplications / getEmployerApplications → qua ApplicationService trực tiếp
+ *   vì chỉ là CRUD đơn giản, không cần Facade
+ */
 class ApplicationController {
+  /**
+   * Ứng tuyển công việc
+   * Gọi qua RecruitmentFacade để Facade điều phối:
+   * validate → tạo đơn → gửi notification cho Employer
+   */
   async applyForJob(req, res, next) {
     try {
       const candidateId = req.user.id;
@@ -11,7 +27,8 @@ class ApplicationController {
         return next(new AppError('Vui lòng cung cấp jobId', 400));
       }
 
-      const application = await ApplicationService.applyForJob(jobId, candidateId, { cv_id, cover_letter });
+      // Gọi qua Facade thay vì gọi thẳng Service
+      const application = await recruitmentFacade.applyForJob(candidateId, jobId, cv_id, cover_letter);
 
       res.status(201).json({
         status: 'success',
@@ -75,6 +92,11 @@ class ApplicationController {
     }
   }
 
+  /**
+   * Đổi trạng thái đơn ứng tuyển
+   * Gọi qua RecruitmentFacade để Facade điều phối:
+   * validate → update status → gửi notification multi-channel (Email + SMS)
+   */
   async updateStatus(req, res, next) {
     try {
       const employerId = req.user.id;
@@ -85,7 +107,8 @@ class ApplicationController {
         return next(new AppError('Vui lòng cung cấp status mới', 400));
       }
 
-      const application = await ApplicationService.updateApplicationStatus(id, employerId, status);
+      // Gọi qua Facade thay vì gọi thẳng Service
+      const application = await recruitmentFacade.changeApplicationStatus(employerId, id, status);
 
       res.status(200).json({
         status: 'success',

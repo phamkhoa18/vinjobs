@@ -172,6 +172,7 @@ export function AuthProvider({ children }) {
       googleLogin,
       googleRegister,
       logout,
+      adminLogout,
       updateUser,
       dashboardPath,
     }}>

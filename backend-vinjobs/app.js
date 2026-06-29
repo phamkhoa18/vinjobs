@@ -44,7 +44,13 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Cấu hình folder chứa ảnh tĩnh (cần thiết để frontend truy cập được file)
+// BẢO MẬT: Thêm security headers cho uploaded files (chống SVG XSS)
 const __dirname = path.resolve();
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Body parser
@@ -52,13 +58,18 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
-// Rate Limiting
-// const limiter = rateLimit({
-//   max: 200, // limit each IP to 200 requests per windowMs
-//   windowMs: 60 * 60 * 1000, // 1 hour
-//   message: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau một giờ!',
-// });
-// app.use('/api', limiter);
+// BẢO MẬT: Rate Limiting toàn cục — chống DoS/DDoS
+const limiter = rateLimit({
+  max: 200, // limit each IP to 200 requests per windowMs
+  windowMs: 60 * 60 * 1000, // 1 hour
+  message: {
+    status: 'fail',
+    message: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau một giờ!',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', limiter);
 
 // Health check
 app.get('/health', (req, res) => {

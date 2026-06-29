@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import EmployerLayout from '../../components/layout/EmployerLayout';
-import { jobsApi, blogApi, getImageUrl } from '../../lib/api';
+import { jobsApi, blogApi, getImageUrl, sanitizeHtml, tokenStorage } from '../../lib/api';
 import LocationService from '../../services/LocationService';
 import { Form, Input, Select, Button, Steps, Row, Col, Checkbox, InputNumber, DatePicker, TimePicker, message, Typography, Space, Divider, Tag, Upload } from 'antd';
 import { CheckCircleOutlined, PlusOutlined, VideoCameraOutlined } from '@ant-design/icons';
@@ -563,7 +563,7 @@ export default function EditJobPage() {
                     name="image"
                     listType="picture-card"
                     action={`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/upload/image`}
-                    headers={{ Authorization: `Bearer ${localStorage.getItem('vj_token')}` }}
+                    headers={{ Authorization: `Bearer ${tokenStorage.get()}` }}
                     multiple
                     onChange={(info) => {
                       if (info.file.status === 'done') {
@@ -675,13 +675,13 @@ export default function EditJobPage() {
                 </Row>
                 <Divider style={{ margin: '12px 0' }} />
                 <Title level={5} className="mt-4">Mô tả công việc</Title>
-                <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: formValues.description }} />
+                <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(formValues.description) }} />
                 <Title level={5} className="mt-4">Yêu cầu ứng viên</Title>
-                <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: formValues.requirements }} />
+                <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(formValues.requirements) }} />
                 {formValues.nice_to_have && formValues.nice_to_have !== '<p><br></p>' && (
                   <>
                     <Title level={5} className="mt-4">Điểm cộng</Title>
-                    <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: formValues.nice_to_have }} />
+                    <div className="text-gray-700 quill-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(formValues.nice_to_have) }} />
                   </>
                 )}
 

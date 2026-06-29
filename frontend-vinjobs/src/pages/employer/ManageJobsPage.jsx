@@ -59,7 +59,7 @@ export default function ManageJobsPage() {
       setJobs(jobs.filter(j => j._id !== id));
       message.success('Xoá tin thành công');
     } catch (err) {
-      message.error('Lỗi khi xoá tin');
+      message.error(err.message || 'Lỗi khi xoá tin');
     }
   };
 
